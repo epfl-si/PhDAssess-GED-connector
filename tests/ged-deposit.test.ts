@@ -27,39 +27,39 @@ const pdfFile = Buffer.from(base64String, 'base64')
 describe('Testing GED deposit', async () =>{
   it('should get a ticket', async () => {
     const ticket = await fetchTicket(
-      process.env.ALFRESCO_USERNAME,
-      process.env.ALFRESCO_PASSWORD,
-      process.env.ALFRESCO_URL
+      process.env.ALFRESCO_USERNAME!,
+      process.env.ALFRESCO_PASSWORD!,
+      process.env.ALFRESCO_URL!
     )
     expect(ticket).to.not.be.empty
   })
 
   it('should read the student folder', async () => {
     const ticket = await fetchTicket(
-      process.env.ALFRESCO_USERNAME,
-      process.env.ALFRESCO_PASSWORD,
-      process.env.ALFRESCO_URL
+      process.env.ALFRESCO_USERNAME!,
+      process.env.ALFRESCO_PASSWORD!,
+      process.env.ALFRESCO_URL!
     )
     const alfrescoStudentsFolderURL = await getStudentFolderURL(phdStudentName,
         phdStudentSciper,
         doctoratID,
         ticket,
-        process.env.ALFRESCO_URL
+        process.env.ALFRESCO_URL!
     )
     await readFolder(alfrescoStudentsFolderURL)
   })
 
   it('should save a pdf', async () => {
     const ticket = await fetchTicket(
-      process.env.ALFRESCO_USERNAME,
-      process.env.ALFRESCO_PASSWORD,
-      process.env.ALFRESCO_URL
+      process.env.ALFRESCO_USERNAME!,
+      process.env.ALFRESCO_PASSWORD!,
+      process.env.ALFRESCO_URL!
     )
     const alfrescoStudentsFolderURL = await getStudentFolderURL(phdStudentName,
       phdStudentSciper,
       doctoratID,
       ticket,
-      process.env.ALFRESCO_URL
+      process.env.ALFRESCO_URL!
     )
     await downloadFile(
       alfrescoStudentsFolderURL,

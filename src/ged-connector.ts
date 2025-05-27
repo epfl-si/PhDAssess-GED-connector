@@ -6,6 +6,7 @@ import got from 'got'
 import {Readable} from "stream"
 import {URL} from "url";
 import {FormData, File} from 'formdata-node'
+// @ts-ignore
 import {FormDataEncoder, FormDataLike} from "form-data-encoder"
 import {ecolesDoctorales} from "./doctorats"
 import {AlfrescoTicketResponse} from "./alfresco_types"
