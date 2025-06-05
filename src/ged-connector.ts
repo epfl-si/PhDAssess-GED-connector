@@ -1,15 +1,16 @@
 // set timeout and retry values
 
 import debug_ from 'debug'
-import * as _ from "lodash";
+import find from "lodash-es/find.js";
 import got from 'got'
 import {Readable} from "stream"
 import {URL} from "url";
 import {FormData, File} from 'formdata-node'
 // @ts-ignore
 import {FormDataEncoder, FormDataLike} from "form-data-encoder"
-import {ecolesDoctorales} from "./doctorats"
-import {AlfrescoTicketResponse} from "./alfresco_types"
+
+import {ecolesDoctorales} from "./doctorats.js"
+import {AlfrescoTicketResponse} from "./alfresco_types.js"
 import * as fs from "node:fs";
 
 
@@ -61,7 +62,7 @@ export const getStudentFolderURL = async (
   alfrescoServerURL: string
 ): Promise<URL> => {
   const studentFolderName = `${studentName}, ${sciper}`
-  const doctoratName = _.find(ecolesDoctorales, {id: doctoralID})?.label ?? doctoralID
+  const doctoratName = find(ecolesDoctorales, {id: doctoralID})?.label ?? doctoralID
 
   const StudentsFolderURL = new URL(
     `/alfresco/api/-default-/public/cmis/versions/1.1/browser/root/Etudiants/Dossiers%20Etudiants/${encodeURIComponent(studentFolderName)}/${encodeURIComponent(doctoratName)}/Cursus`,
