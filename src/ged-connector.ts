@@ -32,14 +32,14 @@ export const fetchTicket = async (
 
     alfrescoLoginUrl.search = `u=${alfrescoUsername}&pw=${alfrescoPassword}&format=json`
 
-    const dataTicket: AlfrescoTicketResponse = await got.get(alfrescoLoginUrl, {
+    const dataTicket = await got.get(alfrescoLoginUrl, {
       timeout: {
         request: alfrescoRequestTimeoutMS
       },
       retry: {
         limit: 0
       },
-    }).json()
+    }).json() as AlfrescoTicketResponse
 
     debug(`Asked for the alfresco ticket and got ${JSON.stringify(dataTicket)}`)
 
