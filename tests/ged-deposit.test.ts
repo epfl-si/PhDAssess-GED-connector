@@ -2,6 +2,9 @@
  * Here you can manually test the GED deposit.
  * Please set the .env correctly, you don't want to use production
  */
+import * as path from "node:path";
+import * as fs from 'node:fs/promises';
+
 require('dotenv').config()
 
 import 'mocha'
@@ -61,20 +64,26 @@ describe('Testing GED deposit', async () =>{
       ticket,
       process.env.ALFRESCO_URL!
     )
+    const destinationPath = path.join('/tmp', pdfToRead)
     await downloadFile(
       alfrescoStudentsFolderURL,
       pdfToRead,
-      `/tmp/${ pdfToRead }`
+      destinationPath
     )
+    expect(destinationPath).to.not.be.empty;
   })
 
   // it('should upload the pdf to the student folder', async () => {
+  //
   //   const ticket = await fetchTicket()
+  //
   //   const alfrescoStudentsFolderURL = await getStudentFolderURL(phdStudentName,
   //       phdStudentSciper,
   //       doctoratID,
   //       ticket
   //   )
+  //
   //   await uploadPDF(alfrescoStudentsFolderURL, pdfFileName, pdfFile)
+  //
   // })
 })
