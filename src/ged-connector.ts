@@ -102,9 +102,11 @@ export const downloadFile = async (
   debug(`File fetched to ${destinationPath}`)
 }
 
-export const uploadPDF = async (studentFolder: URL,
-                                pdfFileName: string,
-                                pdfFile: Buffer) => {
+export const uploadPDF = async (
+  studentFolder: URL,
+  pdfFileName: string,
+  pdfFile: Buffer
+) => {
   const form = new FormData()
   form.set('cmisaction', 'createDocument')
   form.set('propertyId[0]', 'cmis:objectTypeId')
