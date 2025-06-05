@@ -13,7 +13,6 @@
     "noImplicitOverride": true,
     "declaration": true,
     "module": "NodeNext",
-    "moduleResolution": "node16",
     "composite": true
   }
 }

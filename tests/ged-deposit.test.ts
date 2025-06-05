@@ -5,9 +5,7 @@
 import * as path from "node:path";
 import * as fs from 'node:fs/promises';
 
-// @ts-ignore
-import dotenv from 'dotenv'
-dotenv.config()
+require('dotenv').config()
 
 import 'mocha'
 import { expect } from 'chai';
@@ -18,7 +16,7 @@ import {
   readFolder,
   uploadPDF,
   downloadFile
-} from "../src/ged-connector.js";
+} from "../src/ged-connector";
 
 const phdStudentName = process.env.PHDSTUDENTNAME!
 const phdStudentSciper = process.env.PHDSTUDENTSCIPER!
