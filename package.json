@@ -1,6 +1,6 @@
 {
   "name": "phdassess-ged-connector",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "main": "src/index.js",
   "scripts": {
     "test": "DEBUG=ged-connector mocha tests/**/*.test.ts"

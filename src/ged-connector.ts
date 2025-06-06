@@ -53,13 +53,13 @@ export const fetchTicket = async (
   }
 }
 
-export const getStudentFolderURL = async (
+export const getStudentFolderURL = (
   studentName: string,
   sciper: string,
   doctoralID: string,
   ticket: string,
   alfrescoServerURL: string
-): Promise<URL> => {
+): URL => {
   const studentFolderName = `${studentName}, ${sciper}`
   const doctoratName = _.find(ecolesDoctorales, {id: doctoralID})?.label ?? doctoralID
 
