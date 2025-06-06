@@ -74,7 +74,9 @@ export const getStudentFolderURL = (
   return StudentsFolderURL
 }
 
-export const readFolder = async (studentFolder: URL,) => {
+export const readFolder = async (
+  studentFolder: URL
+) => {
   const studentFolderInfo = await got.get(studentFolder, {}).json()
   debug(`Fetched ${JSON.stringify(studentFolderInfo, null, 2)}`)
 }
