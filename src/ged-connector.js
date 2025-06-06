@@ -74,7 +74,7 @@ const fetchTicket = async (alfrescoUsername, alfrescoPassword, alfrescoServerURL
     }
 };
 exports.fetchTicket = fetchTicket;
-const getStudentFolderURL = async (studentName, sciper, doctoralID, ticket, alfrescoServerURL) => {
+const getStudentFolderURL = (studentName, sciper, doctoralID, ticket, alfrescoServerURL) => {
     const studentFolderName = `${studentName}, ${sciper}`;
     const doctoratName = _.find(doctorats_1.ecolesDoctorales, { id: doctoralID })?.label ?? doctoralID;
     const StudentsFolderURL = new url_1.URL(`/alfresco/api/-default-/public/cmis/versions/1.1/browser/root/Etudiants/Dossiers%20Etudiants/${encodeURIComponent(studentFolderName)}/${encodeURIComponent(doctoratName)}/Cursus`, alfrescoServerURL);
