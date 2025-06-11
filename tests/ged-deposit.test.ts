@@ -8,7 +8,9 @@ import * as fs from 'node:fs/promises';
 require('dotenv').config()
 
 import 'mocha'
+import * as chai from 'chai';
 import { expect } from 'chai';
+chai.use(require('chai-fs'));
 
 import {
   getStudentFolderURL,
@@ -53,6 +55,7 @@ describe('Testing GED deposit', async () =>{
   })
 
   it('should save a pdf', async () => {
+
     const ticket = await fetchTicket(
       process.env.ALFRESCO_USERNAME!,
       process.env.ALFRESCO_PASSWORD!,
@@ -64,13 +67,19 @@ describe('Testing GED deposit', async () =>{
       ticket,
       process.env.ALFRESCO_URL!
     )
+
     const destinationPath = path.join('/tmp', pdfToRead)
+
+    await fs.unlink(destinationPath)
+    expect(destinationPath).to.not.be.a.path();
+
     await downloadFile(
       alfrescoStudentsFolderURL,
       pdfToRead,
       destinationPath
     )
-    expect(destinationPath).to.not.be.empty;
+
+    expect(destinationPath).to.be.a.path();
   })
 
   // it('should upload the pdf to the student folder', async () => {

@@ -3,6 +3,8 @@
 import debug_ from 'debug'
 import * as _ from "lodash";
 import got from 'got'
+import {promisify} from 'node:util';
+import stream from 'node:stream';
 import {Readable} from "stream"
 import {URL} from "url";
 import {FormData, File} from 'formdata-node'
@@ -12,6 +14,8 @@ import {ecolesDoctorales} from "./doctorats"
 import {AlfrescoTicketResponse} from "./alfresco_types"
 import * as fs from "node:fs";
 
+
+const pipeline = promisify(stream.pipeline);
 
 const debug = debug_('ged-connector')
 
@@ -95,9 +99,10 @@ export const downloadFile = async (
 
   debug(`Getting file '${fullPath}' to save locally`)
 
-  got.stream(
-    fullPath, {}
-  ).pipe(
+  await pipeline(
+    got.stream(
+      fullPath, {}
+    ),
     fs.createWriteStream(destinationPath)
   )
 
