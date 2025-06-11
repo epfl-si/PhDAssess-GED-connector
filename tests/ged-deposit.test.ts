@@ -17,7 +17,8 @@ import {
   fetchTicket,
   readFolder,
   uploadPDF,
-  downloadFile
+  downloadFile,
+  fetchFile
 } from "../src/ged-connector";
 
 const phdStudentName = process.env.PHDSTUDENTNAME!
@@ -40,18 +41,51 @@ describe('Testing GED deposit', async () =>{
   })
 
   it('should read the student folder', async () => {
+
     const ticket = await fetchTicket(
       process.env.ALFRESCO_USERNAME!,
       process.env.ALFRESCO_PASSWORD!,
       process.env.ALFRESCO_URL!
     )
+
     const alfrescoStudentsFolderURL = await getStudentFolderURL(phdStudentName,
         phdStudentSciper,
         doctoratID,
         ticket,
         process.env.ALFRESCO_URL!
     )
+
     await readFolder(alfrescoStudentsFolderURL)
+
+  })
+
+  it('should fetch a pdf as a base64 string', async () => {
+
+    const ticket = await fetchTicket(
+      process.env.ALFRESCO_USERNAME!,
+      process.env.ALFRESCO_PASSWORD!,
+      process.env.ALFRESCO_URL!
+    )
+
+    const alfrescoStudentsFolderURL = await getStudentFolderURL(phdStudentName,
+      phdStudentSciper,
+      doctoratID,
+      ticket,
+      process.env.ALFRESCO_URL!
+    )
+
+    const pdfAsBase64 = await fetchFile(
+      alfrescoStudentsFolderURL,
+      pdfToRead
+    )
+
+    expect(pdfAsBase64).to.not.be.empty;
+
+    // can we decode this with base64 ?
+    expect(
+      () => btoa(atob(pdfAsBase64))
+    ).to.not.throw()
+
   })
 
   it('should save a pdf', async () => {

@@ -85,6 +85,33 @@ export const readFolder = async (
   debug(`Fetched ${JSON.stringify(studentFolderInfo, null, 2)}`)
 }
 
+/**
+ * Get a pdf file in a base64 format
+ */
+export const fetchFile = async (
+  studentFolder: URL,
+  fileName: string
+) => {
+
+  // Append parameters a new URL remove them
+  const urlParameters = studentFolder.searchParams
+  const fullPath = new URL(
+    'Cursus/' + fileName + '?' + urlParameters,
+    studentFolder
+  )
+
+  debug(`Getting file '${fullPath}' to save as buffer`)
+
+  const response = await got(
+    fullPath,
+    {
+      responseType: 'buffer'
+    }
+  )
+
+  return response.body.toString('base64')
+}
+
 export const downloadFile = async (
   studentFolder: URL,
   fileName: string,
