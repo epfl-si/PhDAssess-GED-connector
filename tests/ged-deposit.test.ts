@@ -48,7 +48,7 @@ describe('Testing GED deposit', async () =>{
       process.env.ALFRESCO_URL!
     )
 
-    const alfrescoStudentsFolderURL = await getStudentFolderURL(phdStudentName,
+    const alfrescoStudentsFolderURL = getStudentFolderURL(phdStudentName,
         phdStudentSciper,
         doctoratID,
         ticket,
@@ -67,7 +67,7 @@ describe('Testing GED deposit', async () =>{
       process.env.ALFRESCO_URL!
     )
 
-    const alfrescoStudentsFolderURL = await getStudentFolderURL(phdStudentName,
+    const alfrescoStudentsFolderURL = getStudentFolderURL(phdStudentName,
       phdStudentSciper,
       doctoratID,
       ticket,
@@ -95,7 +95,7 @@ describe('Testing GED deposit', async () =>{
       process.env.ALFRESCO_PASSWORD!,
       process.env.ALFRESCO_URL!
     )
-    const alfrescoStudentsFolderURL = await getStudentFolderURL(phdStudentName,
+    const alfrescoStudentsFolderURL = getStudentFolderURL(phdStudentName,
       phdStudentSciper,
       doctoratID,
       ticket,
@@ -120,7 +120,7 @@ describe('Testing GED deposit', async () =>{
   //
   //   const ticket = await fetchTicket()
   //
-  //   const alfrescoStudentsFolderURL = await getStudentFolderURL(phdStudentName,
+  //   const alfrescoStudentsFolderURL = getStudentFolderURL(phdStudentName,
   //       phdStudentSciper,
   //       doctoratID,
   //       ticket
