@@ -84,7 +84,12 @@ const getStudentFolderURL = (studentName, sciper, doctoralID, ticket, alfrescoSe
 exports.getStudentFolderURL = getStudentFolderURL;
 const readFolder = async (studentFolder) => {
     const studentFolderInfo = await got_1.default.get(studentFolder, {}).json();
-    debug(`Fetched ${JSON.stringify(studentFolderInfo, null, 2)}`);
+    if (studentFolderInfo && Object.keys(studentFolderInfo).length) {
+        debug(`Successfully fetched student folder info`);
+    }
+    else {
+        debug(`Fetched student folder info but this is an empty result`);
+    }
 };
 exports.readFolder = readFolder;
 /**

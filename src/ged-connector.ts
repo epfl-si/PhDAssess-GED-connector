@@ -78,7 +78,11 @@ export const readFolder = async (
   studentFolder: URL
 ) => {
   const studentFolderInfo = await got.get(studentFolder, {}).json()
-  debug(`Fetched ${JSON.stringify(studentFolderInfo, null, 2)}`)
+  if (studentFolderInfo && Object.keys(studentFolderInfo).length) {
+    debug(`Successfully fetched student folder info`)
+  } else {
+    debug(`Fetched student folder info but this is an empty result`)
+  }
 }
 
 /**
