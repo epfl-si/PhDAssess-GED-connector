@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadPDF = exports.downloadFile = exports.readFolder = exports.getStudentFolderURL = exports.fetchTicket = exports.alfrescoBaseURL = void 0;
+exports.uploadPDF = exports.fetchFileAsBase64 = exports.getFileStream = exports.readFolder = exports.getStudentFolderURL = exports.fetchTicket = exports.alfrescoBaseURL = void 0;
 const debug_1 = __importDefault(require("debug"));
 const _ = __importStar(require("lodash"));
 const got_1 = __importDefault(require("got"));
@@ -47,7 +47,6 @@ const formdata_node_1 = require("formdata-node");
 // @ts-ignore
 const form_data_encoder_1 = require("form-data-encoder");
 const doctorats_1 = require("./doctorats");
-const fs = __importStar(require("node:fs"));
 const debug = (0, debug_1.default)('ged-connector');
 exports.alfrescoBaseURL = process.env.ALFRESCO_URL;
 const alfrescoRequestTimeoutMS = 40000; // 40 seconds
@@ -88,15 +87,34 @@ const readFolder = async (studentFolder) => {
     debug(`Fetched ${JSON.stringify(studentFolderInfo, null, 2)}`);
 };
 exports.readFolder = readFolder;
-const downloadFile = async (studentFolder, fileName, destinationPath) => {
-    // Append parameters a new URL remove them
+/**
+ * Get a duplex stream to a file on alfresco
+ * @param studentFolder
+ * @param fileName
+ */
+const getFileStream = (studentFolder, fileName) => {
+    // see tests to get an example of this stream usage
+    // reconstruct the url to add the filename
     const urlParameters = studentFolder.searchParams;
     const fullPath = new url_1.URL('Cursus/' + fileName + '?' + urlParameters, studentFolder);
-    debug(`Getting file '${fullPath}' to save locally`);
-    got_1.default.stream(fullPath, {}).pipe(fs.createWriteStream(destinationPath));
-    debug(`File fetched to ${destinationPath}`);
+    debug(`Getting a stream for '${fullPath}'`);
+    return got_1.default.stream(fullPath, {});
 };
-exports.downloadFile = downloadFile;
+exports.getFileStream = getFileStream;
+/**
+ * Get a pdf file in a base64 format
+ */
+const fetchFileAsBase64 = async (studentFolder, fileName) => {
+    // reconstruct the url to add the filename
+    const urlParameters = studentFolder.searchParams;
+    const fullPath = new url_1.URL('Cursus/' + fileName + '?' + urlParameters, studentFolder);
+    debug(`Getting file '${fullPath}' to save as buffer`);
+    const response = await (0, got_1.default)(fullPath, {
+        responseType: 'buffer'
+    });
+    return response.body.toString('base64');
+};
+exports.fetchFileAsBase64 = fetchFileAsBase64;
 const uploadPDF = async (studentFolder, pdfFileName, pdfFile) => {
     const form = new formdata_node_1.FormData();
     form.set('cmisaction', 'createDocument');

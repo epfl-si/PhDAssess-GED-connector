@@ -12,10 +12,6 @@ import {FormData, File} from 'formdata-node'
 import {FormDataEncoder, FormDataLike} from "form-data-encoder"
 import {ecolesDoctorales} from "./doctorats"
 import {AlfrescoTicketResponse} from "./alfresco_types"
-import * as fs from "node:fs";
-
-
-const pipeline = promisify(stream.pipeline);
 
 const debug = debug_('ged-connector')
 
@@ -86,14 +82,39 @@ export const readFolder = async (
 }
 
 /**
+ * Get a duplex stream to a file on alfresco
+ * @param studentFolder
+ * @param fileName
+ */
+export const getFileStream = (
+  studentFolder: URL,
+  fileName: string
+) => {
+  // see tests to get an example of this stream usage
+
+  // reconstruct the url to add the filename
+  const urlParameters = studentFolder.searchParams
+  const fullPath = new URL(
+    'Cursus/' + fileName + '?' + urlParameters,
+    studentFolder
+  )
+
+  debug(`Getting a stream for '${fullPath}'`)
+
+  return got.stream(
+    fullPath, {}
+  )
+}
+
+/**
  * Get a pdf file in a base64 format
  */
-export const fetchFile = async (
+export const fetchFileAsBase64 = async (
   studentFolder: URL,
   fileName: string
 ) => {
 
-  // Append parameters a new URL remove them
+  // reconstruct the url to add the filename
   const urlParameters = studentFolder.searchParams
   const fullPath = new URL(
     'Cursus/' + fileName + '?' + urlParameters,
@@ -110,30 +131,6 @@ export const fetchFile = async (
   )
 
   return response.body.toString('base64')
-}
-
-export const downloadFile = async (
-  studentFolder: URL,
-  fileName: string,
-  destinationPath: string
-) => {
-  // Append parameters a new URL remove them
-  const urlParameters = studentFolder.searchParams
-  const fullPath = new URL(
-      'Cursus/' + fileName + '?' + urlParameters,
-      studentFolder
-    )
-
-  debug(`Getting file '${fullPath}' to save locally`)
-
-  await pipeline(
-    got.stream(
-      fullPath, {}
-    ),
-    fs.createWriteStream(destinationPath)
-  )
-
-  debug(`File fetched to ${destinationPath}`)
 }
 
 export const uploadPDF = async (

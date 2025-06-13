@@ -3,7 +3,9 @@
  * Please set the .env correctly, you don't want to use production
  */
 import * as path from "node:path";
-import * as fs from 'node:fs/promises';
+import * as fs from 'node:fs';
+import {promisify} from 'node:util';
+import stream from 'node:stream';
 
 require('dotenv').config()
 
@@ -16,19 +18,16 @@ import {
   getStudentFolderURL,
   fetchTicket,
   readFolder,
-  uploadPDF,
-  downloadFile,
-  fetchFile
-} from "../src/ged-connector";
+  // uploadPDF,
+  fetchFileAsBase64,
+  getFileStream
+} from "../src";
 
 const phdStudentName = process.env.PHDSTUDENTNAME!
 const phdStudentSciper = process.env.PHDSTUDENTSCIPER!
 const doctoratID = process.env.PHDSTUDENTDOCTORAT!
 const pdfToRead= process.env.PDFNAMETOREAD!
 
-const pdfFileName = `Rapport annuel doctorat.pdf`
-const base64String = process.env.PDFSTRING!
-const pdfFile = Buffer.from(base64String, 'base64')
 
 describe('Testing GED deposit', async () =>{
   it('should get a ticket', async () => {
@@ -74,7 +73,7 @@ describe('Testing GED deposit', async () =>{
       process.env.ALFRESCO_URL!
     )
 
-    const pdfAsBase64 = await fetchFile(
+    const pdfAsBase64 = await fetchFileAsBase64(
       alfrescoStudentsFolderURL,
       pdfToRead
     )
@@ -88,13 +87,14 @@ describe('Testing GED deposit', async () =>{
 
   })
 
-  it('should save a pdf', async () => {
+  it('should stream a pdf to a file', async () => {
 
     const ticket = await fetchTicket(
       process.env.ALFRESCO_USERNAME!,
       process.env.ALFRESCO_PASSWORD!,
       process.env.ALFRESCO_URL!
     )
+
     const alfrescoStudentsFolderURL = getStudentFolderURL(phdStudentName,
       phdStudentSciper,
       doctoratID,
@@ -104,19 +104,34 @@ describe('Testing GED deposit', async () =>{
 
     const destinationPath = path.join('/tmp', pdfToRead)
 
-    await fs.unlink(destinationPath)
+    if (fs.existsSync(destinationPath)) fs.unlinkSync(destinationPath)
+
     expect(destinationPath).to.not.be.a.path();
 
-    await downloadFile(
+    // Set the stream
+    const alfrescoStream = getFileStream(
       alfrescoStudentsFolderURL,
       pdfToRead,
-      destinationPath
+    )
+    const fileStream = fs.createWriteStream(destinationPath)
+
+    // Pipe them
+    // from https://github.com/sindresorhus/got/blob/v12.6.1/documentation/3-streams.md
+    const pipeline = promisify(stream.pipeline);
+
+    await pipeline(
+      alfrescoStream,
+      fileStream,
     )
 
     expect(destinationPath).to.be.a.path();
   })
 
   // it('should upload the pdf to the student folder', async () => {
+  //
+  //   const pdfFileName = `Rapport annuel doctorat.pdf`
+  //   const base64String = process.env.PDFSTRING!
+  //   const pdfFile = Buffer.from(base64String, 'base64')
   //
   //   const ticket = await fetchTicket()
   //
