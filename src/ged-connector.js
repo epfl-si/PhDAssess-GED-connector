@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadPDF = exports.fetchFileAsBase64 = exports.getFileStream = exports.readFolder = exports.getStudentFolderURL = exports.fetchTicket = exports.alfrescoBaseURL = void 0;
+exports.uploadPDF = exports.getFileStream = exports.fetchFileAsBase64 = exports.readFolder = exports.getStudentFolderRelativeUrl = exports.fetchTicket = exports.alfrescoBaseURL = void 0;
 const debug_1 = __importDefault(require("debug"));
 const _ = __importStar(require("lodash"));
 const got_1 = __importDefault(require("got"));
@@ -73,46 +73,43 @@ const fetchTicket = async (alfrescoUsername, alfrescoPassword, alfrescoServerURL
     }
 };
 exports.fetchTicket = fetchTicket;
-const getStudentFolderURL = (studentName, sciper, doctoralID, ticket, alfrescoServerURL) => {
-    const studentFolderName = `${studentName}, ${sciper}`;
-    const doctoratName = _.find(doctorats_1.ecolesDoctorales, { id: doctoralID })?.label ?? doctoralID;
-    const StudentsFolderURL = new url_1.URL(`/alfresco/api/-default-/public/cmis/versions/1.1/browser/root/Etudiants/Dossiers%20Etudiants/${encodeURIComponent(studentFolderName)}/${encodeURIComponent(doctoratName)}/Cursus`, alfrescoServerURL);
-    StudentsFolderURL.search = `alf_ticket=${ticket}&format=json`;
-    debug(`Using student folder with url ${StudentsFolderURL}`);
-    return StudentsFolderURL;
+const getStudentFolderRelativeUrl = (studentInfo) => {
+    const studentFolderName = `${studentInfo.studentName}, ${studentInfo.sciper}`;
+    const doctoratName = _.find(doctorats_1.ecolesDoctorales, { id: studentInfo.doctoralAcronym })?.label ?? studentInfo.doctoralAcronym;
+    const studentsFolderURL = `/alfresco/api/-default-/public/cmis/versions/1.1/browser/root/Etudiants/Dossiers%20Etudiants/${encodeURIComponent(studentFolderName)}/${encodeURIComponent(doctoratName)}/Cursus`;
+    return studentsFolderURL;
 };
-exports.getStudentFolderURL = getStudentFolderURL;
-const readFolder = async (studentFolder) => {
-    const studentFolderInfo = await got_1.default.get(studentFolder, {}).json();
-    if (studentFolderInfo && Object.keys(studentFolderInfo).length) {
-        debug(`Successfully fetched student folder info`);
+exports.getStudentFolderRelativeUrl = getStudentFolderRelativeUrl;
+/**
+ * Get the full path to the student folder.
+ * Set the fileName parameter if you need to get a path to a file
+ */
+const buildAlfrescoFullUrl = (alfrescoBaseUrl, studentInfo, ticket, fileName = '') => {
+    let studentPath = new url_1.URL((0, exports.getStudentFolderRelativeUrl)(studentInfo), alfrescoBaseUrl);
+    if (fileName)
+        studentPath.pathname += `/${fileName}`;
+    // add auth and format parameter
+    studentPath.searchParams.set('alf_ticket', ticket);
+    studentPath.searchParams.set('format', 'json');
+    return studentPath;
+};
+const readFolder = async (alfrescoBaseUrl, studentInfo, ticket) => {
+    const folderFullPath = buildAlfrescoFullUrl(alfrescoBaseUrl, studentInfo, ticket);
+    debug(`Reading student folder info ${folderFullPath}`);
+    const studentFolderJsonInfo = await got_1.default.get(folderFullPath, {}).json();
+    if (studentFolderJsonInfo && Object.keys(studentFolderJsonInfo).length) {
+        debug(`Successfully accessed the student folder`);
     }
     else {
-        debug(`Fetched student folder info but this is an empty result`);
+        debug(`Fetched a student folder but empty`);
     }
 };
 exports.readFolder = readFolder;
 /**
- * Get a duplex stream to a file on alfresco
- * @param studentFolder
- * @param fileName
- */
-const getFileStream = (studentFolder, fileName) => {
-    // see tests to get an example of this stream usage
-    // reconstruct the url to add the filename
-    const urlParameters = studentFolder.searchParams;
-    const fullPath = new url_1.URL('Cursus/' + fileName + '?' + urlParameters, studentFolder);
-    debug(`Getting a stream for '${fullPath}'`);
-    return got_1.default.stream(fullPath, {});
-};
-exports.getFileStream = getFileStream;
-/**
  * Get a pdf file in a base64 format
  */
-const fetchFileAsBase64 = async (studentFolder, fileName) => {
-    // reconstruct the url to add the filename
-    const urlParameters = studentFolder.searchParams;
-    const fullPath = new url_1.URL('Cursus/' + fileName + '?' + urlParameters, studentFolder);
+const fetchFileAsBase64 = async (alfrescoBaseUrl, studentInfo, ticket, fileName) => {
+    const fullPath = buildAlfrescoFullUrl(alfrescoBaseUrl, studentInfo, ticket, fileName);
     debug(`Getting file '${fullPath}' to save as buffer`);
     const response = await (0, got_1.default)(fullPath, {
         responseType: 'buffer'
@@ -120,7 +117,17 @@ const fetchFileAsBase64 = async (studentFolder, fileName) => {
     return response.body.toString('base64');
 };
 exports.fetchFileAsBase64 = fetchFileAsBase64;
-const uploadPDF = async (studentFolder, pdfFileName, pdfFile) => {
+/**
+ * Get a duplex stream to a file on alfresco
+ */
+const getFileStream = (alfrescoBaseUrl, studentInfo, ticket, fileName) => {
+    // see tests to get an example of this stream usage
+    const fullPath = buildAlfrescoFullUrl(alfrescoBaseUrl, studentInfo, ticket, fileName);
+    debug(`Getting a stream for '${fullPath}'`);
+    return got_1.default.stream(fullPath, {});
+};
+exports.getFileStream = getFileStream;
+const uploadPDF = async (alfrescoBaseUrl, studentInfo, ticket, pdfFileName, pdfFile) => {
     const form = new formdata_node_1.FormData();
     form.set('cmisaction', 'createDocument');
     form.set('propertyId[0]', 'cmis:objectTypeId');
@@ -131,7 +138,8 @@ const uploadPDF = async (studentFolder, pdfFileName, pdfFile) => {
     const pdfBlob = new formdata_node_1.File([pdfFile], pdfFileName);
     form.set('file', pdfBlob);
     const encoder = new form_data_encoder_1.FormDataEncoder(form);
-    await got_1.default.post(studentFolder, {
+    const fullPath = buildAlfrescoFullUrl(alfrescoBaseUrl, studentInfo, ticket);
+    await got_1.default.post(fullPath, {
         body: stream_1.Readable.from(encoder.encode()),
         headers: encoder.headers,
         timeout: {

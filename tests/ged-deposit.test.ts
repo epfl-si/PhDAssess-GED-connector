@@ -15,17 +15,16 @@ import { expect } from 'chai';
 chai.use(require('chai-fs'));
 
 import {
-  getStudentFolderURL,
   fetchTicket,
   readFolder,
   // uploadPDF,
   fetchFileAsBase64,
-  getFileStream
+  getFileStream, uploadPDF
 } from "../src";
 
 const phdStudentName = process.env.PHDSTUDENTNAME!
 const phdStudentSciper = process.env.PHDSTUDENTSCIPER!
-const doctoratID = process.env.PHDSTUDENTDOCTORAT!
+const doctoralAcronym = process.env.PHDSTUDENTDOCTORATACRONYM!
 const pdfToRead= process.env.PDFNAMETOREAD!
 
 
@@ -47,15 +46,15 @@ describe('Testing GED deposit', async () =>{
       process.env.ALFRESCO_URL!
     )
 
-    const alfrescoStudentsFolderURL = getStudentFolderURL(phdStudentName,
-        phdStudentSciper,
-        doctoratID,
-        ticket,
-        process.env.ALFRESCO_URL!
+    await readFolder(
+      process.env.ALFRESCO_URL!,
+      {
+        studentName: phdStudentName,
+        sciper: phdStudentSciper,
+        doctoralAcronym: doctoralAcronym,
+      },
+      ticket
     )
-
-    await readFolder(alfrescoStudentsFolderURL)
-
   })
 
   it('should fetch a pdf as a base64 string', async () => {
@@ -66,15 +65,14 @@ describe('Testing GED deposit', async () =>{
       process.env.ALFRESCO_URL!
     )
 
-    const alfrescoStudentsFolderURL = getStudentFolderURL(phdStudentName,
-      phdStudentSciper,
-      doctoratID,
-      ticket,
-      process.env.ALFRESCO_URL!
-    )
-
     const pdfAsBase64 = await fetchFileAsBase64(
-      alfrescoStudentsFolderURL,
+      process.env.ALFRESCO_URL!,
+      {
+        studentName: phdStudentName,
+        sciper: phdStudentSciper,
+        doctoralAcronym: doctoralAcronym,
+      },
+      ticket,
       pdfToRead
     )
 
@@ -95,24 +93,25 @@ describe('Testing GED deposit', async () =>{
       process.env.ALFRESCO_URL!
     )
 
-    const alfrescoStudentsFolderURL = getStudentFolderURL(phdStudentName,
-      phdStudentSciper,
-      doctoratID,
-      ticket,
-      process.env.ALFRESCO_URL!
-    )
-
     const destinationPath = path.join('/tmp', pdfToRead)
 
     if (fs.existsSync(destinationPath)) fs.unlinkSync(destinationPath)
 
     expect(destinationPath).to.not.be.a.path();
 
-    // Set the stream
+    // Set the stream to the remote file
     const alfrescoStream = getFileStream(
-      alfrescoStudentsFolderURL,
+      process.env.ALFRESCO_URL!,
+      {
+        studentName: phdStudentName,
+        sciper: phdStudentSciper,
+        doctoralAcronym: doctoralAcronym,
+      },
+      ticket,
       pdfToRead,
     )
+
+    // Set the stream to the filesystem
     const fileStream = fs.createWriteStream(destinationPath)
 
     // Pipe them
@@ -127,21 +126,50 @@ describe('Testing GED deposit', async () =>{
     expect(destinationPath).to.be.a.path();
   })
 
-  // it('should upload the pdf to the student folder', async () => {
-  //
-  //   const pdfFileName = `Rapport annuel doctorat.pdf`
-  //   const base64String = process.env.PDFSTRING!
-  //   const pdfFile = Buffer.from(base64String, 'base64')
-  //
-  //   const ticket = await fetchTicket()
-  //
-  //   const alfrescoStudentsFolderURL = getStudentFolderURL(phdStudentName,
-  //       phdStudentSciper,
-  //       doctoratID,
-  //       ticket
-  //   )
-  //
-  //   await uploadPDF(alfrescoStudentsFolderURL, pdfFileName, pdfFile)
-  //
-  // })
+
+  // don't do this test if it looks like we are in a non-test server
+  !process.env.ALFRESCO_URL!.includes('test') ? it.skip : it
+    ('should upload the pdf to the student folder', async () => {
+
+      const pdfFileName = `Rapport annuel doctorat.pdf`
+      const base64String = process.env.PDFSTRING!
+      const pdfFileBuffer = Buffer.from(base64String, 'base64')
+
+      const ticket = await fetchTicket(
+        process.env.ALFRESCO_USERNAME!,
+        process.env.ALFRESCO_PASSWORD!,
+        process.env.ALFRESCO_URL!
+      )
+
+      await uploadPDF(
+        process.env.ALFRESCO_URL!,
+        {
+          studentName: phdStudentName,
+          sciper: phdStudentSciper,
+          doctoralAcronym: doctoralAcronym,
+        },
+        ticket,
+        pdfFileName,
+        pdfFileBuffer
+      )
+
+      // Try to read back the file
+      const pdfAsBase64 = await fetchFileAsBase64(
+        process.env.ALFRESCO_URL!,
+        {
+          studentName: phdStudentName,
+          sciper: phdStudentSciper,
+          doctoralAcronym: doctoralAcronym,
+        },
+        ticket,
+        pdfFileName
+      )
+
+      expect(pdfAsBase64).to.not.be.empty;
+
+      // can we decode this with base64 ?
+      expect(
+        () => btoa(atob(pdfAsBase64))
+      ).to.not.throw()
+    })
 })

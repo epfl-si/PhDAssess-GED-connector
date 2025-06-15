@@ -19,6 +19,12 @@ export const alfrescoBaseURL = process.env.ALFRESCO_URL
 const alfrescoRequestTimeoutMS = 40000  // 40 seconds
 
 
+export type StudentInfo = {
+  studentName: string,
+  sciper: string,
+  doctoralAcronym: string,
+}
+
 export const fetchTicket = async (
   alfrescoUsername: string,
   alfrescoPassword: string,
@@ -53,76 +59,79 @@ export const fetchTicket = async (
   }
 }
 
-export const getStudentFolderURL = (
-  studentName: string,
-  sciper: string,
-  doctoralID: string,
-  ticket: string,
-  alfrescoServerURL: string
-): URL => {
-  const studentFolderName = `${studentName}, ${sciper}`
-  const doctoratName = _.find(ecolesDoctorales, {id: doctoralID})?.label ?? doctoralID
+export const getStudentFolderRelativeUrl = (
+  studentInfo: StudentInfo
+): string => {
+  const studentFolderName = `${ studentInfo.studentName }, ${ studentInfo.sciper }`
+  const doctoratName = _.find(ecolesDoctorales, {id: studentInfo.doctoralAcronym})?.label ?? studentInfo.doctoralAcronym
 
-  const StudentsFolderURL = new URL(
-    `/alfresco/api/-default-/public/cmis/versions/1.1/browser/root/Etudiants/Dossiers%20Etudiants/${encodeURIComponent(studentFolderName)}/${encodeURIComponent(doctoratName)}/Cursus`,
-    alfrescoServerURL
-  )
+  const studentsFolderURL =
+    `/alfresco/api/-default-/public/cmis/versions/1.1/browser/root/Etudiants/Dossiers%20Etudiants/${encodeURIComponent(studentFolderName)}/${encodeURIComponent(doctoratName)}/Cursus`
 
-  StudentsFolderURL.search = `alf_ticket=${ticket}&format=json`
-
-  debug(`Using student folder with url ${StudentsFolderURL}`)
-  return StudentsFolderURL
-}
-
-export const readFolder = async (
-  studentFolder: URL
-) => {
-  const studentFolderInfo = await got.get(studentFolder, {}).json()
-  if (studentFolderInfo && Object.keys(studentFolderInfo).length) {
-    debug(`Successfully fetched student folder info`)
-  } else {
-    debug(`Fetched student folder info but this is an empty result`)
-  }
+  return studentsFolderURL
 }
 
 /**
- * Get a duplex stream to a file on alfresco
- * @param studentFolder
- * @param fileName
+ * Get the full path to the student folder.
+ * Set the fileName parameter if you need to get a path to a file
  */
-export const getFileStream = (
-  studentFolder: URL,
-  fileName: string
+const buildAlfrescoFullUrl = (
+  alfrescoBaseUrl: string,
+  studentInfo: StudentInfo,
+  ticket: string,
+  fileName = ''
 ) => {
-  // see tests to get an example of this stream usage
-
-  // reconstruct the url to add the filename
-  const urlParameters = studentFolder.searchParams
-  const fullPath = new URL(
-    'Cursus/' + fileName + '?' + urlParameters,
-    studentFolder
+  let studentPath = new URL(
+    getStudentFolderRelativeUrl(studentInfo),
+    alfrescoBaseUrl
   )
 
-  debug(`Getting a stream for '${fullPath}'`)
+  if (fileName) studentPath.pathname += `/${ fileName }`
 
-  return got.stream(
-    fullPath, {}
+  // add auth and format parameter
+  studentPath.searchParams.set('alf_ticket', ticket)
+  studentPath.searchParams.set('format', 'json')
+
+  return studentPath
+};
+
+export const readFolder = async (
+  alfrescoBaseUrl: string,
+  studentInfo: StudentInfo,
+  ticket: string
+) => {
+  const folderFullPath = buildAlfrescoFullUrl(
+    alfrescoBaseUrl,
+    studentInfo,
+    ticket,
   )
+
+  debug(`Reading student folder info ${ folderFullPath }`)
+
+  const studentFolderJsonInfo: JSON = await got.get(folderFullPath, {}).json()
+
+  if (studentFolderJsonInfo && Object.keys(studentFolderJsonInfo).length) {
+    debug(`Successfully accessed the student folder`)
+  } else {
+    debug(`Fetched a student folder but empty`)
+  }
 }
 
 /**
  * Get a pdf file in a base64 format
  */
 export const fetchFileAsBase64 = async (
-  studentFolder: URL,
+  alfrescoBaseUrl: string,
+  studentInfo: StudentInfo,
+  ticket: string,
   fileName: string
 ) => {
 
-  // reconstruct the url to add the filename
-  const urlParameters = studentFolder.searchParams
-  const fullPath = new URL(
-    'Cursus/' + fileName + '?' + urlParameters,
-    studentFolder
+  const fullPath = buildAlfrescoFullUrl(
+    alfrescoBaseUrl,
+    studentInfo,
+    ticket,
+    fileName
   )
 
   debug(`Getting file '${fullPath}' to save as buffer`)
@@ -137,8 +146,32 @@ export const fetchFileAsBase64 = async (
   return response.body.toString('base64')
 }
 
+/**
+ * Get a duplex stream to a file on alfresco
+ */
+export const getFileStream = (
+  alfrescoBaseUrl: string,
+  studentInfo: StudentInfo,
+  ticket: string,
+  fileName: string
+) => {
+  // see tests to get an example of this stream usage
+  const fullPath = buildAlfrescoFullUrl(
+    alfrescoBaseUrl,
+    studentInfo,
+    ticket,
+    fileName
+  )
+
+  debug(`Getting a stream for '${fullPath}'`)
+
+  return got.stream(fullPath, {})
+}
+
 export const uploadPDF = async (
-  studentFolder: URL,
+  alfrescoBaseUrl: string,
+  studentInfo: StudentInfo,
+  ticket: string,
   pdfFileName: string,
   pdfFile: Buffer
 ) => {
@@ -155,8 +188,14 @@ export const uploadPDF = async (
   form.set('file', pdfBlob)
   const encoder = new FormDataEncoder(form as FormDataLike)
 
+  const fullPath = buildAlfrescoFullUrl(
+    alfrescoBaseUrl,
+    studentInfo,
+    ticket
+  )
+
   await got.post(
-    studentFolder,
+    fullPath,
     {
       body: Readable.from(encoder.encode()),
       headers: encoder.headers,
