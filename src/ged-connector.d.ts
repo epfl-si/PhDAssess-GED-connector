@@ -15,4 +15,9 @@ export declare const fetchFileAsBase64: (alfrescoBaseUrl: string, studentInfo: S
  * Get a duplex stream to a file on alfresco
  */
 export declare const getFileStream: (alfrescoBaseUrl: string, studentInfo: StudentInfo, ticket: string, fileName: string) => import("got", { with: { "resolution-mode": "import" } }).Request;
-export declare const uploadPDF: (alfrescoBaseUrl: string, studentInfo: StudentInfo, ticket: string, pdfFileName: string, pdfFile: Buffer) => Promise<void>;
+/**
+ * Upload a file and return the name that finally fit.
+ * Name can change from the provided one as it may already have one, so
+ * we rename it to copy next to the already set one
+ */
+export declare const uploadPDF: (alfrescoBaseUrl: string, studentInfo: StudentInfo, ticket: string, pdfFileName: string, pdfFile: Buffer) => Promise<string | undefined>;

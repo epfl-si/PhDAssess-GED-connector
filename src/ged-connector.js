@@ -127,27 +127,58 @@ const getFileStream = (alfrescoBaseUrl, studentInfo, ticket, fileName) => {
     return got_1.default.stream(fullPath, {});
 };
 exports.getFileStream = getFileStream;
+/**
+ * Upload a file and return the name that finally fit.
+ * Name can change from the provided one as it may already have one, so
+ * we rename it to copy next to the already set one
+ */
 const uploadPDF = async (alfrescoBaseUrl, studentInfo, ticket, pdfFileName, pdfFile) => {
     const form = new formdata_node_1.FormData();
     form.set('cmisaction', 'createDocument');
     form.set('propertyId[0]', 'cmis:objectTypeId');
     form.set('propertyValue[0]', 'cmis:document');
     form.set('propertyId[1]', 'cmis:name');
-    form.set('propertyValue[1]', pdfFileName);
     form.set('succinct', 'true');
     const pdfBlob = new formdata_node_1.File([pdfFile], pdfFileName);
     form.set('file', pdfBlob);
-    const encoder = new form_data_encoder_1.FormDataEncoder(form);
     const fullPath = buildAlfrescoFullUrl(alfrescoBaseUrl, studentInfo, ticket);
-    await got_1.default.post(fullPath, {
-        body: stream_1.Readable.from(encoder.encode()),
-        headers: encoder.headers,
-        timeout: {
-            request: alfrescoRequestTimeoutMS
-        },
-        retry: {
-            limit: 0
-        },
-    });
+    // we may need to change the filename
+    let finalPdfFileName = pdfFileName;
+    const maxRetry = 50;
+    let attempt = 0;
+    while (attempt < maxRetry) {
+        try {
+            form.set('propertyValue[1]', finalPdfFileName);
+            const encoder = new form_data_encoder_1.FormDataEncoder(form);
+            debug(`Trying to deposit the file ${finalPdfFileName}`);
+            await got_1.default.post(fullPath, {
+                body: stream_1.Readable.from(encoder.encode()),
+                headers: encoder.headers,
+                timeout: {
+                    request: alfrescoRequestTimeoutMS
+                },
+                retry: {
+                    limit: 0
+                },
+            });
+            debug(`Successfully uploaded a file. Requested name : ${pdfFileName}. Final name : ${finalPdfFileName}`);
+            return finalPdfFileName;
+        }
+        catch (error) {
+            if (error.response?.statusCode === 409) {
+                // retry with a different name
+                debug(`The File name conflict. Retrying`);
+                // the regex allows to capture the filename extension (.pdf)
+                attempt++;
+                // add the _v1, or increment
+                finalPdfFileName = finalPdfFileName.match(/_v(\d+)(\.[^.]*)$/)
+                    ? finalPdfFileName.replace(/_v(\d+)(\.[^.]*)$/, (_, v, ext) => `_v${+v + 1}${ext}`)
+                    : finalPdfFileName.replace(/(\.[^.]*)$/, "_v1$1");
+            }
+            else {
+                throw error; // Rethrow or handle other errors as needed
+            }
+        }
+    }
 };
 exports.uploadPDF = uploadPDF;

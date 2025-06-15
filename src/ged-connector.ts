@@ -168,6 +168,11 @@ export const getFileStream = (
   return got.stream(fullPath, {})
 }
 
+/**
+ * Upload a file and return the name that finally fit.
+ * Name can change from the provided one as it may already have one, so
+ * we rename it to copy next to the already set one
+ */
 export const uploadPDF = async (
   alfrescoBaseUrl: string,
   studentInfo: StudentInfo,
@@ -180,13 +185,10 @@ export const uploadPDF = async (
   form.set('propertyId[0]', 'cmis:objectTypeId')
   form.set('propertyValue[0]', 'cmis:document')
   form.set('propertyId[1]', 'cmis:name')
-  form.set('propertyValue[1]', pdfFileName)
   form.set('succinct', 'true')
 
   const pdfBlob = new File([pdfFile], pdfFileName)
-
   form.set('file', pdfBlob)
-  const encoder = new FormDataEncoder(form as FormDataLike)
 
   const fullPath = buildAlfrescoFullUrl(
     alfrescoBaseUrl,
@@ -194,17 +196,50 @@ export const uploadPDF = async (
     ticket
   )
 
-  await got.post(
-    fullPath,
-    {
-      body: Readable.from(encoder.encode()),
-      headers: encoder.headers,
-      timeout: {
-        request: alfrescoRequestTimeoutMS
-      },
-      retry: {
-        limit: 0
-      },
+  // we may need to change the filename
+  let finalPdfFileName = pdfFileName
+  const maxRetry = 50
+  let attempt = 0
+
+  while (attempt < maxRetry) {
+    try {
+      form.set('propertyValue[1]', finalPdfFileName)
+      const encoder = new FormDataEncoder(form as FormDataLike)
+
+      debug(`Trying to deposit the file ${finalPdfFileName}`)
+
+      await got.post(
+        fullPath,
+        {
+          body: Readable.from(encoder.encode()),
+          headers: encoder.headers,
+          timeout: {
+            request: alfrescoRequestTimeoutMS
+          },
+          retry: {
+            limit: 0
+          },
+        }
+      )
+
+      debug(`Successfully uploaded a file. Requested name : ${pdfFileName}. Final name : ${finalPdfFileName}`)
+
+      return finalPdfFileName
+
+    } catch(error: any) {
+      if (error.response?.statusCode === 409) {
+        // retry with a different name
+        debug(`The File name conflict. Retrying`)
+        // the regex allows to capture the filename extension (.pdf)
+        attempt++
+
+        // add the _v1, or increment
+        finalPdfFileName = finalPdfFileName.match(/_v(\d+)(\.[^.]*)$/)
+          ? finalPdfFileName.replace(/_v(\d+)(\.[^.]*)$/, (_, v, ext) => `_v${+v + 1}${ext}`)
+          : finalPdfFileName.replace(/(\.[^.]*)$/, "_v1$1");
+      } else {
+        throw error; // Rethrow or handle other errors as needed
+      }
     }
-  )
+  }
 }

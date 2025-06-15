@@ -98,13 +98,15 @@ describe('Testing GED deposit', async () => {
         await pipeline(alfrescoStream, fileStream);
         (0, chai_1.expect)(destinationPath).to.be.a.path();
     });
-    // don't do this test if it looks like we are in a non-test server
-    !process.env.ALFRESCO_URL.includes('test') ? it.skip : it('should upload the pdf to the student folder', async () => {
+    it('should upload the pdf to the student folder', async () => {
+        // don't do this test if it looks like we are in a non-test server
+        if (!process.env.ALFRESCO_URL.includes('test'))
+            throw new Error(`Failing test because the server may be the production`);
         const pdfFileName = `Rapport annuel doctorat.pdf`;
         const base64String = process.env.PDFSTRING;
         const pdfFileBuffer = Buffer.from(base64String, 'base64');
         const ticket = await (0, src_1.fetchTicket)(process.env.ALFRESCO_USERNAME, process.env.ALFRESCO_PASSWORD, process.env.ALFRESCO_URL);
-        await (0, src_1.uploadPDF)(process.env.ALFRESCO_URL, {
+        const newPdfFileName = await (0, src_1.uploadPDF)(process.env.ALFRESCO_URL, {
             studentName: phdStudentName,
             sciper: phdStudentSciper,
             doctoralAcronym: doctoralAcronym,
@@ -114,7 +116,7 @@ describe('Testing GED deposit', async () => {
             studentName: phdStudentName,
             sciper: phdStudentSciper,
             doctoralAcronym: doctoralAcronym,
-        }, ticket, pdfFileName);
+        }, ticket, newPdfFileName);
         (0, chai_1.expect)(pdfAsBase64).to.not.be.empty;
         // can we decode this with base64 ?
         (0, chai_1.expect)(() => btoa(atob(pdfAsBase64))).to.not.throw();
