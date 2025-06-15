@@ -93,15 +93,30 @@ const buildAlfrescoFullUrl = (alfrescoBaseUrl, studentInfo, ticket, fileName = '
     studentPath.searchParams.set('format', 'json');
     return studentPath;
 };
+/**
+ * Get info about a folder based on the provided student info
+ *
+ * @param alfrescoBaseUrl
+ * @param studentInfo
+ * @param ticket
+ */
 const readFolder = async (alfrescoBaseUrl, studentInfo, ticket) => {
     const folderFullPath = buildAlfrescoFullUrl(alfrescoBaseUrl, studentInfo, ticket);
     debug(`Reading student folder info ${folderFullPath}`);
-    const studentFolderJsonInfo = await got_1.default.get(folderFullPath, {}).json();
-    if (studentFolderJsonInfo && Object.keys(studentFolderJsonInfo).length) {
-        debug(`Successfully accessed the student folder`);
+    try {
+        const studentFolderJsonInfo = await got_1.default.get(folderFullPath, {}).json();
+        if (studentFolderJsonInfo && Object.keys(studentFolderJsonInfo).length) {
+            debug(`Successfully accessed the student folder ${JSON.stringify(studentFolderJsonInfo)}`);
+        }
+        else {
+            debug(`Fetched a student folder but empty ${studentFolderJsonInfo}`);
+        }
     }
-    else {
-        debug(`Fetched a student folder but empty`);
+    catch (error) {
+        if (error.response?.statusCode) {
+            error.message += `. URL used: ${folderFullPath}`;
+            throw error;
+        }
     }
 };
 exports.readFolder = readFolder;

@@ -6,6 +6,13 @@ export type StudentInfo = {
 };
 export declare const fetchTicket: (alfrescoUsername: string, alfrescoPassword: string, alfrescoServerURL: string) => Promise<string>;
 export declare const getStudentFolderRelativeUrl: (studentInfo: StudentInfo) => string;
+/**
+ * Get info about a folder based on the provided student info
+ *
+ * @param alfrescoBaseUrl
+ * @param studentInfo
+ * @param ticket
+ */
 export declare const readFolder: (alfrescoBaseUrl: string, studentInfo: StudentInfo, ticket: string) => Promise<void>;
 /**
  * Get a pdf file in a base64 format
