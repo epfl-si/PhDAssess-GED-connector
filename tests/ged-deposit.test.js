@@ -50,46 +50,41 @@ const chai = __importStar(require("chai"));
 const chai_1 = require("chai");
 chai.use(require('chai-fs'));
 const src_1 = require("../src");
-const phdStudentName = process.env.PHDSTUDENTNAME;
-const phdStudentSciper = process.env.PHDSTUDENTSCIPER;
-const doctoralAcronym = process.env.PHDSTUDENTDOCTORATACRONYM;
 const pdfToRead = process.env.PDFNAMETOREAD;
+const studentInfo = {
+    doctoralAcronym: process.env.PHDSTUDENTDOCTORATACRONYM,
+    studentName: process.env.PHDSTUDENTNAME,
+    sciper: process.env.PHDSTUDENTSCIPER,
+};
+const alfrescoInfo = {
+    serverUrl: process.env.ALFRESCO_URL,
+    username: process.env.ALFRESCO_USERNAME,
+    password: process.env.ALFRESCO_PASSWORD,
+};
 describe('Testing GED deposit', async () => {
     it('should get a ticket', async () => {
-        const ticket = await (0, src_1.fetchTicket)(process.env.ALFRESCO_USERNAME, process.env.ALFRESCO_PASSWORD, process.env.ALFRESCO_URL);
+        const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
         (0, chai_1.expect)(ticket).to.not.be.empty;
     });
     it('should read the student folder', async () => {
-        const ticket = await (0, src_1.fetchTicket)(process.env.ALFRESCO_USERNAME, process.env.ALFRESCO_PASSWORD, process.env.ALFRESCO_URL);
-        await (0, src_1.readFolder)(process.env.ALFRESCO_URL, {
-            studentName: phdStudentName,
-            sciper: phdStudentSciper,
-            doctoralAcronym: doctoralAcronym,
-        }, ticket);
+        const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
+        await (0, src_1.readFolder)(alfrescoInfo, studentInfo, ticket);
     });
     it('should fetch a pdf as a base64 string', async () => {
-        const ticket = await (0, src_1.fetchTicket)(process.env.ALFRESCO_USERNAME, process.env.ALFRESCO_PASSWORD, process.env.ALFRESCO_URL);
-        const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(process.env.ALFRESCO_URL, {
-            studentName: phdStudentName,
-            sciper: phdStudentSciper,
-            doctoralAcronym: doctoralAcronym,
-        }, ticket, pdfToRead);
+        const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
+        const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(alfrescoInfo, studentInfo, ticket, pdfToRead);
         (0, chai_1.expect)(pdfAsBase64).to.not.be.empty;
         // can we decode this with base64 ?
         (0, chai_1.expect)(() => btoa(atob(pdfAsBase64))).to.not.throw();
     });
     it('should stream a pdf to a file', async () => {
-        const ticket = await (0, src_1.fetchTicket)(process.env.ALFRESCO_USERNAME, process.env.ALFRESCO_PASSWORD, process.env.ALFRESCO_URL);
+        const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
         const destinationPath = path.join('/tmp', pdfToRead);
         if (fs.existsSync(destinationPath))
             fs.unlinkSync(destinationPath);
         (0, chai_1.expect)(destinationPath).to.not.be.a.path();
         // Set the stream to the remote file
-        const alfrescoStream = (0, src_1.getFileStream)(process.env.ALFRESCO_URL, {
-            studentName: phdStudentName,
-            sciper: phdStudentSciper,
-            doctoralAcronym: doctoralAcronym,
-        }, ticket, pdfToRead);
+        const alfrescoStream = (0, src_1.getFileStream)(alfrescoInfo, studentInfo, ticket, pdfToRead);
         // Set the stream to the filesystem
         const fileStream = fs.createWriteStream(destinationPath);
         // Pipe them
@@ -105,18 +100,10 @@ describe('Testing GED deposit', async () => {
         const pdfFileName = `Rapport annuel doctorat.pdf`;
         const base64String = process.env.PDFSTRING;
         const pdfFileBuffer = Buffer.from(base64String, 'base64');
-        const ticket = await (0, src_1.fetchTicket)(process.env.ALFRESCO_USERNAME, process.env.ALFRESCO_PASSWORD, process.env.ALFRESCO_URL);
-        const newPdfFileName = await (0, src_1.uploadPDF)(process.env.ALFRESCO_URL, {
-            studentName: phdStudentName,
-            sciper: phdStudentSciper,
-            doctoralAcronym: doctoralAcronym,
-        }, ticket, pdfFileName, pdfFileBuffer);
+        const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
+        const newPdfFileName = await (0, src_1.uploadPDF)(alfrescoInfo, studentInfo, ticket, pdfFileName, pdfFileBuffer);
         // Try to read back the file
-        const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(process.env.ALFRESCO_URL, {
-            studentName: phdStudentName,
-            sciper: phdStudentSciper,
-            doctoralAcronym: doctoralAcronym,
-        }, ticket, newPdfFileName);
+        const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(alfrescoInfo, studentInfo, ticket, newPdfFileName);
         (0, chai_1.expect)(pdfAsBase64).to.not.be.empty;
         // can we decode this with base64 ?
         (0, chai_1.expect)(() => btoa(atob(pdfAsBase64))).to.not.throw();

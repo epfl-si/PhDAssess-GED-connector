@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadPDF = exports.getFileStream = exports.fetchFileAsBase64 = exports.readFolder = exports.getStudentFolderRelativeUrl = exports.fetchTicket = exports.alfrescoBaseURL = void 0;
+exports.uploadPDF = exports.getFileStream = exports.fetchFileAsBase64 = exports.readFolder = exports.getStudentFolderRelativeUrl = exports.fetchTicket = void 0;
 const debug_1 = __importDefault(require("debug"));
 const _ = __importStar(require("lodash"));
 const got_1 = __importDefault(require("got"));
@@ -48,13 +48,12 @@ const formdata_node_1 = require("formdata-node");
 const form_data_encoder_1 = require("form-data-encoder");
 const doctorats_1 = require("./doctorats");
 const debug = (0, debug_1.default)('ged-connector');
-exports.alfrescoBaseURL = process.env.ALFRESCO_URL;
 const alfrescoRequestTimeoutMS = 40000; // 40 seconds
-const fetchTicket = async (alfrescoUsername, alfrescoPassword, alfrescoServerURL) => {
-    debug(`Using server ${alfrescoServerURL}`);
-    if (alfrescoUsername && alfrescoPassword) {
-        const alfrescoLoginUrl = new url_1.URL(`/alfresco/service/api/login`, alfrescoServerURL);
-        alfrescoLoginUrl.search = `u=${alfrescoUsername}&pw=${alfrescoPassword}&format=json`;
+const fetchTicket = async ({ serverUrl, username, password }) => {
+    debug(`Using server ${serverUrl}`);
+    if (username && password) {
+        const alfrescoLoginUrl = new url_1.URL(`/alfresco/service/api/login`, serverUrl);
+        alfrescoLoginUrl.search = `u=${username}&pw=${password}&format=json`;
         const dataTicket = await got_1.default.get(alfrescoLoginUrl, {
             timeout: {
                 request: alfrescoRequestTimeoutMS
@@ -84,8 +83,8 @@ exports.getStudentFolderRelativeUrl = getStudentFolderRelativeUrl;
  * Get the full path to the student folder.
  * Set the fileName parameter if you need to get a path to a file
  */
-const buildAlfrescoFullUrl = (alfrescoBaseUrl, studentInfo, ticket, fileName = '') => {
-    let studentPath = new url_1.URL((0, exports.getStudentFolderRelativeUrl)(studentInfo), alfrescoBaseUrl);
+const buildAlfrescoFullUrl = (serverUrl, studentInfo, ticket, fileName = '') => {
+    let studentPath = new url_1.URL((0, exports.getStudentFolderRelativeUrl)(studentInfo), serverUrl);
     if (fileName)
         studentPath.pathname += `/${fileName}`;
     // add auth and format parameter
@@ -100,8 +99,8 @@ const buildAlfrescoFullUrl = (alfrescoBaseUrl, studentInfo, ticket, fileName = '
  * @param studentInfo
  * @param ticket
  */
-const readFolder = async (alfrescoBaseUrl, studentInfo, ticket) => {
-    const folderFullPath = buildAlfrescoFullUrl(alfrescoBaseUrl, studentInfo, ticket);
+const readFolder = async ({ serverUrl }, studentInfo, ticket) => {
+    const folderFullPath = buildAlfrescoFullUrl(serverUrl, studentInfo, ticket);
     debug(`Reading student folder info ${folderFullPath}`);
     try {
         const studentFolderJsonInfo = await got_1.default.get(folderFullPath, {}).json();
@@ -123,8 +122,8 @@ exports.readFolder = readFolder;
 /**
  * Get a pdf file in a base64 format
  */
-const fetchFileAsBase64 = async (alfrescoBaseUrl, studentInfo, ticket, fileName) => {
-    const fullPath = buildAlfrescoFullUrl(alfrescoBaseUrl, studentInfo, ticket, fileName);
+const fetchFileAsBase64 = async ({ serverUrl }, studentInfo, ticket, fileName) => {
+    const fullPath = buildAlfrescoFullUrl(serverUrl, studentInfo, ticket, fileName);
     debug(`Getting file '${fullPath}' to save as buffer`);
     const response = await (0, got_1.default)(fullPath, {
         responseType: 'buffer'
@@ -135,9 +134,9 @@ exports.fetchFileAsBase64 = fetchFileAsBase64;
 /**
  * Get a duplex stream to a file on alfresco
  */
-const getFileStream = (alfrescoBaseUrl, studentInfo, ticket, fileName) => {
+const getFileStream = ({ serverUrl }, studentInfo, ticket, fileName) => {
     // see tests to get an example of this stream usage
-    const fullPath = buildAlfrescoFullUrl(alfrescoBaseUrl, studentInfo, ticket, fileName);
+    const fullPath = buildAlfrescoFullUrl(serverUrl, studentInfo, ticket, fileName);
     debug(`Getting a stream for '${fullPath}'`);
     return got_1.default.stream(fullPath, {});
 };
@@ -147,7 +146,7 @@ exports.getFileStream = getFileStream;
  * Name can change from the provided one as it may already have one, so
  * we rename it to copy next to the already set one
  */
-const uploadPDF = async (alfrescoBaseUrl, studentInfo, ticket, pdfFileName, pdfFile) => {
+const uploadPDF = async ({ serverUrl }, studentInfo, ticket, pdfFileName, pdfFile) => {
     const form = new formdata_node_1.FormData();
     form.set('cmisaction', 'createDocument');
     form.set('propertyId[0]', 'cmis:objectTypeId');
@@ -156,7 +155,7 @@ const uploadPDF = async (alfrescoBaseUrl, studentInfo, ticket, pdfFileName, pdfF
     form.set('succinct', 'true');
     const pdfBlob = new formdata_node_1.File([pdfFile], pdfFileName);
     form.set('file', pdfBlob);
-    const fullPath = buildAlfrescoFullUrl(alfrescoBaseUrl, studentInfo, ticket);
+    const fullPath = buildAlfrescoFullUrl(serverUrl, studentInfo, ticket);
     // we may need to change the filename
     let finalPdfFileName = pdfFileName;
     const maxRetry = 50;

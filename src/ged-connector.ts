@@ -12,31 +12,24 @@ import {FormData, File} from 'formdata-node'
 import {FormDataEncoder, FormDataLike} from "form-data-encoder"
 import {ecolesDoctorales} from "./doctorats"
 import {AlfrescoTicketResponse} from "./alfresco_types"
+import {
+  AlfrescoInfo,
+  StudentInfo
+} from './types';
 
 const debug = debug_('ged-connector')
 
-export const alfrescoBaseURL = process.env.ALFRESCO_URL
 const alfrescoRequestTimeoutMS = 40000  // 40 seconds
 
-
-export type StudentInfo = {
-  studentName: string,
-  sciper: string,
-  doctoralAcronym: string,
-}
-
 export const fetchTicket = async (
-  alfrescoUsername: string,
-  alfrescoPassword: string,
-  alfrescoServerURL: string,
+  { serverUrl, username, password }: AlfrescoInfo
 ): Promise<string> => {
+  debug(`Using server ${ serverUrl }`)
 
-  debug(`Using server ${alfrescoServerURL}`)
+  if (username && password) {
+    const alfrescoLoginUrl = new URL(`/alfresco/service/api/login`, serverUrl)
 
-  if (alfrescoUsername && alfrescoPassword) {
-    const alfrescoLoginUrl = new URL(`/alfresco/service/api/login`, alfrescoServerURL)
-
-    alfrescoLoginUrl.search = `u=${alfrescoUsername}&pw=${alfrescoPassword}&format=json`
+    alfrescoLoginUrl.search = `u=${ username }&pw=${ password }&format=json`
 
     const dataTicket = await got.get(alfrescoLoginUrl, {
       timeout: {
@@ -76,14 +69,14 @@ export const getStudentFolderRelativeUrl = (
  * Set the fileName parameter if you need to get a path to a file
  */
 const buildAlfrescoFullUrl = (
-  alfrescoBaseUrl: string,
+  serverUrl: string,
   studentInfo: StudentInfo,
   ticket: string,
   fileName = ''
 ) => {
   let studentPath = new URL(
     getStudentFolderRelativeUrl(studentInfo),
-    alfrescoBaseUrl
+    serverUrl
   )
 
   if (fileName) studentPath.pathname += `/${ fileName }`
@@ -103,12 +96,12 @@ const buildAlfrescoFullUrl = (
  * @param ticket
  */
 export const readFolder = async (
-  alfrescoBaseUrl: string,
+  { serverUrl }: AlfrescoInfo,
   studentInfo: StudentInfo,
   ticket: string
 ) => {
   const folderFullPath = buildAlfrescoFullUrl(
-    alfrescoBaseUrl,
+    serverUrl,
     studentInfo,
     ticket,
   )
@@ -135,14 +128,14 @@ export const readFolder = async (
  * Get a pdf file in a base64 format
  */
 export const fetchFileAsBase64 = async (
-  alfrescoBaseUrl: string,
+  { serverUrl }: AlfrescoInfo,
   studentInfo: StudentInfo,
   ticket: string,
   fileName: string
 ) => {
 
   const fullPath = buildAlfrescoFullUrl(
-    alfrescoBaseUrl,
+    serverUrl,
     studentInfo,
     ticket,
     fileName
@@ -164,14 +157,14 @@ export const fetchFileAsBase64 = async (
  * Get a duplex stream to a file on alfresco
  */
 export const getFileStream = (
-  alfrescoBaseUrl: string,
+  { serverUrl }: AlfrescoInfo,
   studentInfo: StudentInfo,
   ticket: string,
   fileName: string
 ) => {
   // see tests to get an example of this stream usage
   const fullPath = buildAlfrescoFullUrl(
-    alfrescoBaseUrl,
+    serverUrl,
     studentInfo,
     ticket,
     fileName
@@ -188,7 +181,7 @@ export const getFileStream = (
  * we rename it to copy next to the already set one
  */
 export const uploadPDF = async (
-  alfrescoBaseUrl: string,
+  { serverUrl }: AlfrescoInfo,
   studentInfo: StudentInfo,
   ticket: string,
   pdfFileName: string,
@@ -205,7 +198,7 @@ export const uploadPDF = async (
   form.set('file', pdfBlob)
 
   const fullPath = buildAlfrescoFullUrl(
-    alfrescoBaseUrl,
+    serverUrl,
     studentInfo,
     ticket
   )
