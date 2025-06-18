@@ -54,7 +54,7 @@ export const fetchTicket = async (
     debug(`Asked for the alfresco ticket and got ${JSON.stringify(dataTicket)}`)
 
     if (!dataTicket.data.ticket) throw new Error(
-      `Alresco answered but did not give any ticket. Returned data : ${JSON.stringify(dataTicket)}`
+      `Alfresco answered but did not give any ticket. Returned data : ${JSON.stringify(dataTicket)}`
     )
 
     return dataTicket.data.ticket
@@ -225,8 +225,11 @@ export const uploadPDF = async (
         }
       )
 
-      const fullFinalPath = fullPath + '/' + finalPdfFileName
+      let fullFinalUrl = fullPath
+      fullFinalUrl.search = ''
+      const fullFinalPath = fullFinalUrl + '/' + finalPdfFileName
       debug(`Successfully uploaded a file. Requested name : ${pdfFileName}. Final path : ${fullFinalPath}`)
+
       return fullFinalPath
     } catch(error: any) {
       if (error.response?.statusCode === 409) {

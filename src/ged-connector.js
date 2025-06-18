@@ -71,7 +71,7 @@ const fetchTicket = async ({ serverUrl, username, password }) => {
         }).json();
         debug(`Asked for the alfresco ticket and got ${JSON.stringify(dataTicket)}`);
         if (!dataTicket.data.ticket)
-            throw new Error(`Alresco answered but did not give any ticket. Returned data : ${JSON.stringify(dataTicket)}`);
+            throw new Error(`Alfresco answered but did not give any ticket. Returned data : ${JSON.stringify(dataTicket)}`);
         return dataTicket.data.ticket;
     }
     else {
@@ -182,7 +182,9 @@ const uploadPDF = async ({ serverUrl }, studentInfo, ticket, pdfFileName, pdfFil
                     limit: 0
                 },
             });
-            const fullFinalPath = fullPath + '/' + finalPdfFileName;
+            let fullFinalUrl = fullPath;
+            fullFinalUrl.search = '';
+            const fullFinalPath = fullFinalUrl + '/' + finalPdfFileName;
             debug(`Successfully uploaded a file. Requested name : ${pdfFileName}. Final path : ${fullFinalPath}`);
             return fullFinalPath;
         }
