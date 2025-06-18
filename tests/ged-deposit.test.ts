@@ -25,7 +25,7 @@ import {
 } from "../src";
 
 
-const pdfToRead= process.env.PDFNAMETOREAD!
+const pdfToRead = process.env.PDFNAMETOREAD!
 
 const studentInfo: StudentInfo = {
   doctoralAcronym: process.env.PHDSTUDENTDOCTORATACRONYM!,
@@ -66,10 +66,8 @@ describe('Testing GED deposit', async () => {
     const ticket = await fetchTicket(alfrescoInfo)
 
     const pdfAsBase64 = await fetchFileAsBase64(
-      alfrescoInfo,
-      studentInfo,
+      process.env.PDFANNEXPATH!,
       ticket,
-      pdfToRead
     )
 
     expect(pdfAsBase64).to.not.be.empty;
@@ -83,9 +81,11 @@ describe('Testing GED deposit', async () => {
 
   it('should stream a pdf to a file', async () => {
 
+    expect(process.env.PDFANNEXPATH).to.not.be.empty;
+
     const ticket = await fetchTicket(alfrescoInfo)
 
-    const destinationPath = path.join('/tmp', pdfToRead)
+    const destinationPath = path.join('/tmp', process.env.PDFANNEXPATH!.split('/').pop()!)
 
     if (fs.existsSync(destinationPath)) fs.unlinkSync(destinationPath)
 
@@ -93,10 +93,8 @@ describe('Testing GED deposit', async () => {
 
     // Set the stream to the remote file
     const alfrescoStream = getFileStream(
-      alfrescoInfo,
-      studentInfo,
+      process.env.PDFANNEXPATH!,
       ticket,
-      pdfToRead,
     )
 
     // Set the stream to the filesystem
@@ -126,7 +124,7 @@ describe('Testing GED deposit', async () => {
 
     const ticket = await fetchTicket(alfrescoInfo)
 
-    const newPdfFileName = await uploadPDF(
+    const newPdfFilePath = await uploadPDF(
       alfrescoInfo,
       studentInfo,
       ticket,
@@ -136,10 +134,8 @@ describe('Testing GED deposit', async () => {
 
     // Try to read back the file
     const pdfAsBase64 = await fetchFileAsBase64(
-      alfrescoInfo,
-      studentInfo,
-      ticket,
-      newPdfFileName!
+      newPdfFilePath!,
+      ticket
     )
 
     expect(pdfAsBase64).to.not.be.empty;
@@ -149,5 +145,4 @@ describe('Testing GED deposit', async () => {
       () => btoa(atob(pdfAsBase64))
     ).to.not.throw()
   })
-
 })

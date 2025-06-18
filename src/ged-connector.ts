@@ -21,6 +21,17 @@ const debug = debug_('ged-connector')
 
 const alfrescoRequestTimeoutMS = 40000  // 40 seconds
 
+const appendTicketToUrl = (
+  url: string | URL,
+  ticket: string
+) => {
+  if (!(url instanceof URL)) {
+    url = new URL(url)
+  }
+  url.searchParams.set('alf_ticket', ticket)
+  return url
+}
+
 export const fetchTicket = async (
   { serverUrl, username, password }: AlfrescoInfo
 ): Promise<string> => {
@@ -128,23 +139,15 @@ export const readFolder = async (
  * Get a pdf file in a base64 format
  */
 export const fetchFileAsBase64 = async (
-  { serverUrl }: AlfrescoInfo,
-  studentInfo: StudentInfo,
+  filePath: string,
   ticket: string,
-  fileName: string
 ) => {
+  const filePathUrl = appendTicketToUrl(filePath, ticket)
 
-  const fullPath = buildAlfrescoFullUrl(
-    serverUrl,
-    studentInfo,
-    ticket,
-    fileName
-  )
-
-  debug(`Getting file '${fullPath}' to save as buffer`)
+  debug(`Getting file '${ filePathUrl }' to save as buffer`)
 
   const response = await got(
-    fullPath,
+    filePathUrl,
     {
       responseType: 'buffer'
     }
@@ -157,27 +160,20 @@ export const fetchFileAsBase64 = async (
  * Get a duplex stream to a file on alfresco
  */
 export const getFileStream = (
-  { serverUrl }: AlfrescoInfo,
-  studentInfo: StudentInfo,
+  filePath: string,
   ticket: string,
-  fileName: string
 ) => {
   // see tests to get an example of this stream usage
-  const fullPath = buildAlfrescoFullUrl(
-    serverUrl,
-    studentInfo,
-    ticket,
-    fileName
-  )
+  const filePathUrl = appendTicketToUrl(filePath, ticket)
 
-  debug(`Getting a stream for '${fullPath}'`)
+  debug(`Getting a stream for '${filePathUrl}'`)
 
-  return got.stream(fullPath, {})
+  return got.stream(filePathUrl, {})
 }
 
 /**
- * Upload a file and return the name that finally fit.
- * Name can change from the provided one as it may already have one, so
+ * Upload a file and return the full path that finally fit.
+ * File name can change from the provided one as it may already have one, so
  * we rename it to copy next to the already set one
  */
 export const uploadPDF = async (
@@ -229,10 +225,9 @@ export const uploadPDF = async (
         }
       )
 
-      debug(`Successfully uploaded a file. Requested name : ${pdfFileName}. Final name : ${finalPdfFileName}`)
-
-      return finalPdfFileName
-
+      const fullFinalPath = fullPath + '/' + finalPdfFileName
+      debug(`Successfully uploaded a file. Requested name : ${pdfFileName}. Final path : ${fullFinalPath}`)
+      return fullFinalPath
     } catch(error: any) {
       if (error.response?.statusCode === 409) {
         // retry with a different name

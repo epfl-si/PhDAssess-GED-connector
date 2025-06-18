@@ -72,19 +72,20 @@ describe('Testing GED deposit', async () => {
     });
     it('should fetch a pdf as a base64 string', async () => {
         const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
-        const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(alfrescoInfo, studentInfo, ticket, pdfToRead);
+        const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(process.env.PDFANNEXPATH, ticket);
         (0, chai_1.expect)(pdfAsBase64).to.not.be.empty;
         // can we decode this with base64 ?
         (0, chai_1.expect)(() => btoa(atob(pdfAsBase64))).to.not.throw();
     });
     it('should stream a pdf to a file', async () => {
+        (0, chai_1.expect)(process.env.PDFANNEXPATH).to.not.be.empty;
         const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
-        const destinationPath = path.join('/tmp', pdfToRead);
+        const destinationPath = path.join('/tmp', process.env.PDFANNEXPATH.split('/').pop());
         if (fs.existsSync(destinationPath))
             fs.unlinkSync(destinationPath);
         (0, chai_1.expect)(destinationPath).to.not.be.a.path();
         // Set the stream to the remote file
-        const alfrescoStream = (0, src_1.getFileStream)(alfrescoInfo, studentInfo, ticket, pdfToRead);
+        const alfrescoStream = (0, src_1.getFileStream)(process.env.PDFANNEXPATH, ticket);
         // Set the stream to the filesystem
         const fileStream = fs.createWriteStream(destinationPath);
         // Pipe them
@@ -101,9 +102,9 @@ describe('Testing GED deposit', async () => {
         const base64String = process.env.PDFSTRING;
         const pdfFileBuffer = Buffer.from(base64String, 'base64');
         const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
-        const newPdfFileName = await (0, src_1.uploadPDF)(alfrescoInfo, studentInfo, ticket, pdfFileName, pdfFileBuffer);
+        const newPdfFilePath = await (0, src_1.uploadPDF)(alfrescoInfo, studentInfo, ticket, pdfFileName, pdfFileBuffer);
         // Try to read back the file
-        const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(alfrescoInfo, studentInfo, ticket, newPdfFileName);
+        const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(newPdfFilePath, ticket);
         (0, chai_1.expect)(pdfAsBase64).to.not.be.empty;
         // can we decode this with base64 ?
         (0, chai_1.expect)(() => btoa(atob(pdfAsBase64))).to.not.throw();

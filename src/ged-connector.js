@@ -49,6 +49,13 @@ const form_data_encoder_1 = require("form-data-encoder");
 const doctorats_1 = require("./doctorats");
 const debug = (0, debug_1.default)('ged-connector');
 const alfrescoRequestTimeoutMS = 40000; // 40 seconds
+const appendTicketToUrl = (url, ticket) => {
+    if (!(url instanceof url_1.URL)) {
+        url = new url_1.URL(url);
+    }
+    url.searchParams.set('alf_ticket', ticket);
+    return url;
+};
 const fetchTicket = async ({ serverUrl, username, password }) => {
     debug(`Using server ${serverUrl}`);
     if (username && password) {
@@ -105,7 +112,7 @@ const readFolder = async ({ serverUrl }, studentInfo, ticket) => {
     try {
         const studentFolderJsonInfo = await got_1.default.get(folderFullPath, {}).json();
         if (studentFolderJsonInfo && Object.keys(studentFolderJsonInfo).length) {
-            debug(`Successfully accessed the student folder ${JSON.stringify(studentFolderJsonInfo)}`);
+            debug(`Successfully accessed the student folder`);
         }
         else {
             debug(`Fetched a student folder but empty ${studentFolderJsonInfo}`);
@@ -122,10 +129,10 @@ exports.readFolder = readFolder;
 /**
  * Get a pdf file in a base64 format
  */
-const fetchFileAsBase64 = async ({ serverUrl }, studentInfo, ticket, fileName) => {
-    const fullPath = buildAlfrescoFullUrl(serverUrl, studentInfo, ticket, fileName);
-    debug(`Getting file '${fullPath}' to save as buffer`);
-    const response = await (0, got_1.default)(fullPath, {
+const fetchFileAsBase64 = async (filePath, ticket) => {
+    const filePathUrl = appendTicketToUrl(filePath, ticket);
+    debug(`Getting file '${filePathUrl}' to save as buffer`);
+    const response = await (0, got_1.default)(filePathUrl, {
         responseType: 'buffer'
     });
     return response.body.toString('base64');
@@ -134,16 +141,16 @@ exports.fetchFileAsBase64 = fetchFileAsBase64;
 /**
  * Get a duplex stream to a file on alfresco
  */
-const getFileStream = ({ serverUrl }, studentInfo, ticket, fileName) => {
+const getFileStream = (filePath, ticket) => {
     // see tests to get an example of this stream usage
-    const fullPath = buildAlfrescoFullUrl(serverUrl, studentInfo, ticket, fileName);
-    debug(`Getting a stream for '${fullPath}'`);
-    return got_1.default.stream(fullPath, {});
+    const filePathUrl = appendTicketToUrl(filePath, ticket);
+    debug(`Getting a stream for '${filePathUrl}'`);
+    return got_1.default.stream(filePathUrl, {});
 };
 exports.getFileStream = getFileStream;
 /**
- * Upload a file and return the name that finally fit.
- * Name can change from the provided one as it may already have one, so
+ * Upload a file and return the full path that finally fit.
+ * File name can change from the provided one as it may already have one, so
  * we rename it to copy next to the already set one
  */
 const uploadPDF = async ({ serverUrl }, studentInfo, ticket, pdfFileName, pdfFile) => {
@@ -175,8 +182,9 @@ const uploadPDF = async ({ serverUrl }, studentInfo, ticket, pdfFileName, pdfFil
                     limit: 0
                 },
             });
-            debug(`Successfully uploaded a file. Requested name : ${pdfFileName}. Final name : ${finalPdfFileName}`);
-            return finalPdfFileName;
+            const fullFinalPath = fullPath + '/' + finalPdfFileName;
+            debug(`Successfully uploaded a file. Requested name : ${pdfFileName}. Final path : ${fullFinalPath}`);
+            return fullFinalPath;
         }
         catch (error) {
             if (error.response?.statusCode === 409) {
