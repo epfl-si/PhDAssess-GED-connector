@@ -112,7 +112,7 @@ export const readFolder = async (
     const studentFolderJsonInfo: JSON = await got.get(folderFullPath, {}).json()
 
     if (studentFolderJsonInfo && Object.keys(studentFolderJsonInfo).length) {
-      debug(`Successfully accessed the student folder ${JSON.stringify(studentFolderJsonInfo)}`)
+      debug(`Successfully accessed the student folder`)
     } else {
       debug(`Fetched a student folder but empty ${studentFolderJsonInfo}`)
     }
