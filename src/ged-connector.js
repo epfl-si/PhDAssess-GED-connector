@@ -68,7 +68,7 @@ const fetchTicket = async ({ serverUrl, username, password }) => {
         return dataTicket.data.ticket;
     }
     else {
-        throw new Error(`Missing environment variables to ALFRESCO_USERNAME and/or ALFRESCO_PASSWORD`);
+        throw new Error(`Missing username or password to connect to the remote server`);
     }
 };
 exports.fetchTicket = fetchTicket;
