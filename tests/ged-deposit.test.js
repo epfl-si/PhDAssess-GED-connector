@@ -62,7 +62,22 @@ const alfrescoInfo = {
     username: process.env.ALFRESCO_USERNAME,
     password: process.env.ALFRESCO_PASSWORD,
 };
+const checkForPdfBase64StringValidity = async (pdfAsBase64) => {
+    (0, chai_1.expect)(pdfAsBase64).to.not.be.empty;
+    // can we decode this with base64 ?
+    (0, chai_1.expect)(() => btoa(atob(pdfAsBase64))).to.not.throw();
+    // can we open this as pdf ?
+    const buffer = Buffer.from(pdfAsBase64, 'base64');
+    const pdfGeneratedUint8 = new Uint8Array(buffer);
+    const pdf = (0, pdf_mjs_1.getDocument)({ data: pdfGeneratedUint8 });
+    const doc = await pdf.promise;
+    (0, chai_1.expect)(doc).to.not.be.empty;
+    (0, chai_1.expect)(doc.numPages).to.be.greaterThan(0);
+};
 describe('Testing GED deposit', async () => {
+    // you could use the next line to test a specific path. Remember to skip the upload test then.
+    // let pdfFullPath = process.env.PDFANNEXPATH
+    let pdfFullPath;
     it('should get a ticket', async () => {
         const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
         (0, chai_1.expect)(ticket).to.not.be.empty;
@@ -71,29 +86,39 @@ describe('Testing GED deposit', async () => {
         const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
         await (0, src_1.readFolder)(alfrescoInfo, studentInfo, ticket);
     });
+    it('should upload the pdf to the student folder', async () => {
+        // don't do this test if it looks like we are in a non-test server
+        if (!process.env.ALFRESCO_URL.includes('test'))
+            throw new Error(`Failing test because the server may be the production`);
+        // read the pdf file to base64
+        const pdfFile = fs.readFileSync(__dirname + '/sample.pdf');
+        const base64String = pdfFile.toString('base64');
+        const pdfFileName = `Rapport annuel doctorat.pdf`;
+        const pdfFileBuffer = Buffer.from(base64String, 'base64');
+        const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
+        pdfFullPath = await (0, src_1.uploadPDF)(alfrescoInfo, studentInfo, ticket, pdfFileName, pdfFileBuffer);
+        // Try to read back the file
+        const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(pdfFullPath, ticket);
+        await checkForPdfBase64StringValidity(pdfAsBase64);
+    }).timeout(5000); // 2000, the default, is not enough for this operation
     it('should fetch a pdf as a base64 string', async () => {
         const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
-        const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(process.env.PDFANNEXPATH, ticket);
+        (0, chai_1.expect)(pdfFullPath).to.not.be.empty;
+        const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(pdfFullPath, ticket);
         (0, chai_1.expect)(pdfAsBase64).to.not.be.empty;
         // can we decode this with base64 ?
         (0, chai_1.expect)(() => btoa(atob(pdfAsBase64))).to.not.throw();
-        // can we open this as pdf ?
-        const buffer = Buffer.from(pdfAsBase64, 'base64');
-        const pdfGeneratedUint8 = new Uint8Array(buffer);
-        const pdf = (0, pdf_mjs_1.getDocument)({ data: pdfGeneratedUint8 });
-        const doc = await pdf.promise;
-        (0, chai_1.expect)(doc).to.not.be.empty;
-        (0, chai_1.expect)(doc.numPages).to.be.greaterThan(0);
+        await checkForPdfBase64StringValidity(pdfAsBase64);
     });
     it('should stream a pdf to a file', async () => {
-        (0, chai_1.expect)(process.env.PDFANNEXPATH).to.not.be.empty;
+        (0, chai_1.expect)(pdfFullPath).to.not.be.empty;
         const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
-        const destinationPath = path.join('/tmp', process.env.PDFANNEXPATH.split('/').pop());
+        const destinationPath = path.join('/tmp', pdfFullPath.split('/').pop());
         if (fs.existsSync(destinationPath))
             fs.unlinkSync(destinationPath);
         (0, chai_1.expect)(destinationPath).to.not.be.a.path();
         // Set the stream to the remote file
-        const alfrescoStream = (0, src_1.getFileStream)(process.env.PDFANNEXPATH, ticket);
+        const alfrescoStream = (0, src_1.getFileStream)(pdfFullPath, ticket);
         // Set the stream to the filesystem
         const fileStream = fs.createWriteStream(destinationPath);
         // Pipe them
@@ -106,26 +131,4 @@ describe('Testing GED deposit', async () => {
         (0, chai_1.expect)(doc).to.not.be.empty;
         (0, chai_1.expect)(doc.numPages).to.be.greaterThan(0);
     });
-    it('should upload the pdf to the student folder', async () => {
-        // don't do this test if it looks like we are in a non-test server
-        if (!process.env.ALFRESCO_URL.includes('test'))
-            throw new Error(`Failing test because the server may be the production`);
-        const pdfFileName = `Rapport annuel doctorat.pdf`;
-        const base64String = process.env.PDFSTRING;
-        const pdfFileBuffer = Buffer.from(base64String, 'base64');
-        const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
-        const newPdfFilePath = await (0, src_1.uploadPDF)(alfrescoInfo, studentInfo, ticket, pdfFileName, pdfFileBuffer);
-        // Try to read back the file
-        const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(newPdfFilePath, ticket);
-        (0, chai_1.expect)(pdfAsBase64).to.not.be.empty;
-        // can we decode this with base64 ?
-        (0, chai_1.expect)(() => btoa(atob(pdfAsBase64))).to.not.throw();
-        // can we open this as pdf ?
-        const buffer = Buffer.from(pdfAsBase64, 'base64');
-        const pdfGeneratedUint8 = new Uint8Array(buffer);
-        const pdf = (0, pdf_mjs_1.getDocument)({ data: pdfGeneratedUint8 });
-        const doc = await pdf.promise;
-        (0, chai_1.expect)(doc).to.not.be.empty;
-        (0, chai_1.expect)(doc.numPages).to.be.greaterThan(0);
-    }).timeout(5000); // default to 2000, that is not enough for this operation
 });
