@@ -43,6 +43,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const path = __importStar(require("node:path"));
 const fs = __importStar(require("node:fs"));
 const node_util_1 = require("node:util");
+const pdf_mjs_1 = require("pdfjs-dist/legacy/build/pdf.mjs");
 const node_stream_1 = __importDefault(require("node:stream"));
 require('dotenv').config();
 require("mocha");
@@ -76,6 +77,13 @@ describe('Testing GED deposit', async () => {
         (0, chai_1.expect)(pdfAsBase64).to.not.be.empty;
         // can we decode this with base64 ?
         (0, chai_1.expect)(() => btoa(atob(pdfAsBase64))).to.not.throw();
+        // can we open this as pdf ?
+        const buffer = Buffer.from(pdfAsBase64, 'base64');
+        const pdfGeneratedUint8 = new Uint8Array(buffer);
+        const pdf = (0, pdf_mjs_1.getDocument)({ data: pdfGeneratedUint8 });
+        const doc = await pdf.promise;
+        (0, chai_1.expect)(doc).to.not.be.empty;
+        (0, chai_1.expect)(doc.numPages).to.be.greaterThan(0);
     });
     it('should stream a pdf to a file', async () => {
         (0, chai_1.expect)(process.env.PDFANNEXPATH).to.not.be.empty;
@@ -93,6 +101,10 @@ describe('Testing GED deposit', async () => {
         const pipeline = (0, node_util_1.promisify)(node_stream_1.default.pipeline);
         await pipeline(alfrescoStream, fileStream);
         (0, chai_1.expect)(destinationPath).to.be.a.path();
+        const pdf = (0, pdf_mjs_1.getDocument)(destinationPath);
+        const doc = await pdf.promise;
+        (0, chai_1.expect)(doc).to.not.be.empty;
+        (0, chai_1.expect)(doc.numPages).to.be.greaterThan(0);
     });
     it('should upload the pdf to the student folder', async () => {
         // don't do this test if it looks like we are in a non-test server
@@ -108,5 +120,12 @@ describe('Testing GED deposit', async () => {
         (0, chai_1.expect)(pdfAsBase64).to.not.be.empty;
         // can we decode this with base64 ?
         (0, chai_1.expect)(() => btoa(atob(pdfAsBase64))).to.not.throw();
-    });
+        // can we open this as pdf ?
+        const buffer = Buffer.from(pdfAsBase64, 'base64');
+        const pdfGeneratedUint8 = new Uint8Array(buffer);
+        const pdf = (0, pdf_mjs_1.getDocument)({ data: pdfGeneratedUint8 });
+        const doc = await pdf.promise;
+        (0, chai_1.expect)(doc).to.not.be.empty;
+        (0, chai_1.expect)(doc.numPages).to.be.greaterThan(0);
+    }).timeout(5000); // default to 2000, that is not enough for this operation
 });

@@ -5,6 +5,7 @@
 import * as path from "node:path";
 import * as fs from 'node:fs';
 import {promisify} from 'node:util';
+import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import stream from 'node:stream';
 
 require('dotenv').config()
@@ -77,6 +78,16 @@ describe('Testing GED deposit', async () => {
       () => btoa(atob(pdfAsBase64))
     ).to.not.throw()
 
+    // can we open this as pdf ?
+    const buffer = Buffer.from(pdfAsBase64, 'base64')
+    const pdfGeneratedUint8 = new Uint8Array(buffer)
+
+    const pdf = getDocument({ data: pdfGeneratedUint8 })
+    const doc = await pdf.promise
+
+    expect(doc).to.not.be.empty
+    expect(doc.numPages).to.be.greaterThan(0)
+
   })
 
   it('should stream a pdf to a file', async () => {
@@ -110,6 +121,11 @@ describe('Testing GED deposit', async () => {
     )
 
     expect(destinationPath).to.be.a.path();
+    const pdf = getDocument(destinationPath)
+    const doc = await pdf.promise
+
+    expect(doc).to.not.be.empty
+    expect(doc.numPages).to.be.greaterThan(0)
 
   })
 
@@ -144,5 +160,15 @@ describe('Testing GED deposit', async () => {
     expect(
       () => btoa(atob(pdfAsBase64))
     ).to.not.throw()
-  })
+
+    // can we open this as pdf ?
+    const buffer = Buffer.from(pdfAsBase64, 'base64')
+    const pdfGeneratedUint8 = new Uint8Array(buffer)
+
+    const pdf = getDocument({ data: pdfGeneratedUint8 })
+    const doc = await pdf.promise
+
+    expect(doc).to.not.be.empty
+    expect(doc.numPages).to.be.greaterThan(0)
+  }).timeout(5000)  // default to 2000, that is not enough for this operation
 })
