@@ -26,8 +26,6 @@ import {
 } from "../src";
 
 
-const pdfToRead = process.env.PDFNAMETOREAD!
-
 const studentInfo: StudentInfo = {
   doctoralAcronym: process.env.PHDSTUDENTDOCTORATACRONYM!,
   studentName: process.env.PHDSTUDENTNAME!,
@@ -62,10 +60,7 @@ const checkForPdfBase64StringValidity = async (pdfAsBase64: string) => {
 
 describe('Testing GED deposit', async () => {
 
-  // you could use the next line to test a specific path. Remember to skip the upload test then.
-  // let pdfFullPath = process.env.PDFANNEXPATH
-  let pdfFullPath: string
-
+  let pdfFullPath = process.env.PDFANNEXPATH!
 
   it('should get a ticket', async () => {
 
@@ -88,7 +83,7 @@ describe('Testing GED deposit', async () => {
   })
 
 
-  it('should upload the pdf to the student folder', async () => {
+  it('should upload a pdf file to the student folder. The pdf become a base 64, then a form data.', async () => {
 
     // don't do this test if it looks like we are in a non-test server
     if (!process.env.ALFRESCO_URL!.includes('test')) throw new Error(`Failing test because the server may be the production`)

@@ -51,7 +51,6 @@ const chai = __importStar(require("chai"));
 const chai_1 = require("chai");
 chai.use(require('chai-fs'));
 const src_1 = require("../src");
-const pdfToRead = process.env.PDFNAMETOREAD;
 const studentInfo = {
     doctoralAcronym: process.env.PHDSTUDENTDOCTORATACRONYM,
     studentName: process.env.PHDSTUDENTNAME,
@@ -75,9 +74,7 @@ const checkForPdfBase64StringValidity = async (pdfAsBase64) => {
     (0, chai_1.expect)(doc.numPages).to.be.greaterThan(0);
 };
 describe('Testing GED deposit', async () => {
-    // you could use the next line to test a specific path. Remember to skip the upload test then.
-    // let pdfFullPath = process.env.PDFANNEXPATH
-    let pdfFullPath;
+    let pdfFullPath = process.env.PDFANNEXPATH;
     it('should get a ticket', async () => {
         const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
         (0, chai_1.expect)(ticket).to.not.be.empty;
@@ -86,7 +83,7 @@ describe('Testing GED deposit', async () => {
         const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
         await (0, src_1.readFolder)(alfrescoInfo, studentInfo, ticket);
     });
-    it('should upload the pdf to the student folder', async () => {
+    it('should upload a pdf file to the student folder. The pdf become a base 64, then a form data.', async () => {
         // don't do this test if it looks like we are in a non-test server
         if (!process.env.ALFRESCO_URL.includes('test'))
             throw new Error(`Failing test because the server may be the production`);
