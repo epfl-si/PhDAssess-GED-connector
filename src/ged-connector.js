@@ -63,7 +63,7 @@ const fetchTicket = async ({ serverUrl, username, password }) => {
     const alfrescoLoginUrl = new url_1.URL(`/alfresco/service/api/login`, serverUrl);
     alfrescoLoginUrl.search = `u=${username}&pw=${password}&format=json`;
     // set a timeout
-    const controller = new globalThis.AbortController();
+    const controller = new AbortController();
     const timeout = setTimeout(() => {
         controller.abort();
     }, alfrescoRequestTimeoutMS);
@@ -120,7 +120,7 @@ const buildAlfrescoFullUrl = (serverUrl, studentInfo, ticket, fileName = '') => 
 const readFolder = async ({ serverUrl }, studentInfo, ticket) => {
     const folderFullPath = buildAlfrescoFullUrl(serverUrl, studentInfo, ticket);
     // set a timeout
-    const controller = new globalThis.AbortController();
+    const controller = new AbortController();
     const timeout = setTimeout(() => {
         controller.abort();
     }, alfrescoRequestTimeoutMS);
@@ -161,7 +161,7 @@ const fetchFileAsBase64 = async (filePath, ticket) => {
     const filePathUrl = appendTicketToUrl(filePath, ticket);
     debug(`Getting file '${filePathUrl}' to save as buffer`);
     // set a timeout
-    const controller = new globalThis.AbortController();
+    const controller = new AbortController();
     const timeout = setTimeout(() => {
         controller.abort();
     }, alfrescoRequestTimeoutMS);
@@ -220,7 +220,7 @@ const uploadPDF = async ({ serverUrl }, studentInfo, ticket, pdfFileName, pdfFil
             const encoder = new form_data_encoder_1.FormDataEncoder(formData);
             debug(`Trying to deposit the file ${finalPdfFileName}`);
             // set a timeout
-            const controller = new globalThis.AbortController();
+            const controller = new AbortController();
             const timeout = setTimeout(() => {
                 controller.abort();
             }, alfrescoRequestTimeoutMS);

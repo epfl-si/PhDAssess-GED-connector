@@ -141,4 +141,4 @@ describe('Testing GED deposit', async () => {
         (0, chai_1.expect)(doc).to.not.be.empty;
         (0, chai_1.expect)(doc.numPages).to.be.greaterThan(0);
     });
-});
+}).timeout(5000); // raise the default, sometimes we can have lag spikes

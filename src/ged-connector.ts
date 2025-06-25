@@ -47,7 +47,7 @@ export const fetchTicket = async (
   alfrescoLoginUrl.search = `u=${ username }&pw=${ password }&format=json`
 
   // set a timeout
-  const controller = new globalThis.AbortController();
+  const controller = new AbortController();
   const timeout = setTimeout(() => {
     controller.abort();
   }, alfrescoRequestTimeoutMS);
@@ -139,7 +139,7 @@ export const readFolder = async (
   )
 
   // set a timeout
-  const controller = new globalThis.AbortController();
+  const controller = new AbortController();
   const timeout = setTimeout(() => {
     controller.abort();
   }, alfrescoRequestTimeoutMS);
@@ -189,7 +189,7 @@ export const fetchFileAsBase64 = async (
   debug(`Getting file '${ filePathUrl }' to save as buffer`)
 
   // set a timeout
-  const controller = new globalThis.AbortController();
+  const controller = new AbortController();
   const timeout = setTimeout(() => {
     controller.abort();
   }, alfrescoRequestTimeoutMS);
@@ -279,7 +279,7 @@ export const uploadPDF = async (
       debug(`Trying to deposit the file ${finalPdfFileName}`)
 
       // set a timeout
-      const controller = new globalThis.AbortController();
+      const controller = new AbortController();
       const timeout = setTimeout(() => {
         controller.abort();
       }, alfrescoRequestTimeoutMS);
