@@ -40,9 +40,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.uploadPDF = exports.getFileStream = exports.fetchFileAsBase64 = exports.readFolder = exports.getStudentFolderRelativeUrl = exports.fetchTicket = void 0;
 const debug_1 = __importDefault(require("debug"));
 const _ = __importStar(require("lodash"));
-const got_1 = __importDefault(require("got"));
-const stream_1 = require("stream");
 const url_1 = require("url");
+const stream_1 = require("stream");
+const node_fetch_1 = __importStar(require("node-fetch"));
 const formdata_node_1 = require("formdata-node");
 // @ts-ignore
 const form_data_encoder_1 = require("form-data-encoder");
@@ -58,32 +58,43 @@ const appendTicketToUrl = (url, ticket) => {
 };
 const fetchTicket = async ({ serverUrl, username, password }) => {
     debug(`Using server ${serverUrl}`);
-    if (username && password) {
-        const alfrescoLoginUrl = new url_1.URL(`/alfresco/service/api/login`, serverUrl);
-        alfrescoLoginUrl.search = `u=${username}&pw=${password}&format=json`;
-        const dataTicket = await got_1.default.get(alfrescoLoginUrl, {
-            timeout: {
-                request: alfrescoRequestTimeoutMS
-            },
-            retry: {
-                limit: 0
-            },
-        }).json();
+    if (!username || !password)
+        throw new Error(`Missing username or password to connect to the remote server`);
+    const alfrescoLoginUrl = new url_1.URL(`/alfresco/service/api/login`, serverUrl);
+    alfrescoLoginUrl.search = `u=${username}&pw=${password}&format=json`;
+    // set a timeout
+    const controller = new globalThis.AbortController();
+    const timeout = setTimeout(() => {
+        controller.abort();
+    }, alfrescoRequestTimeoutMS);
+    try {
+        const response = await (0, node_fetch_1.default)(alfrescoLoginUrl, { signal: controller.signal });
+        if (!response.ok)
+            throw new Error(`Alfresco answered with a response error. Returned error: ${response}`);
+        const dataTicket = await response.json();
         debug(`Asked for the alfresco ticket and got ${JSON.stringify(dataTicket)}`);
         if (!dataTicket.data.ticket)
             throw new Error(`Alfresco answered but did not give any ticket. Returned data : ${JSON.stringify(dataTicket)}`);
         return dataTicket.data.ticket;
     }
-    else {
-        throw new Error(`Missing username or password to connect to the remote server`);
+    catch (error) {
+        if (error instanceof node_fetch_1.AbortError) {
+            throw new Error(`Request on ${serverUrl} was aborted or got a timeout`);
+        }
+        else {
+            throw error;
+        }
+    }
+    finally {
+        clearTimeout(timeout);
     }
 };
 exports.fetchTicket = fetchTicket;
 const getStudentFolderRelativeUrl = (studentInfo) => {
     const studentFolderName = `${studentInfo.studentName}, ${studentInfo.sciper}`;
     const doctoratName = _.find(doctorats_1.ecolesDoctorales, { id: studentInfo.doctoralAcronym })?.label ?? studentInfo.doctoralAcronym;
-    const studentsFolderURL = `/alfresco/api/-default-/public/cmis/versions/1.1/browser/root/Etudiants/Dossiers%20Etudiants/${encodeURIComponent(studentFolderName)}/${encodeURIComponent(doctoratName)}/Cursus`;
-    return studentsFolderURL;
+    return `/alfresco/api/-default-/public/cmis/versions/1.1/browser/root/` +
+        `Etudiants/Dossiers%20Etudiants/${encodeURIComponent(studentFolderName)}/${encodeURIComponent(doctoratName)}/Cursus`;
 };
 exports.getStudentFolderRelativeUrl = getStudentFolderRelativeUrl;
 /**
@@ -108,9 +119,17 @@ const buildAlfrescoFullUrl = (serverUrl, studentInfo, ticket, fileName = '') => 
  */
 const readFolder = async ({ serverUrl }, studentInfo, ticket) => {
     const folderFullPath = buildAlfrescoFullUrl(serverUrl, studentInfo, ticket);
+    // set a timeout
+    const controller = new globalThis.AbortController();
+    const timeout = setTimeout(() => {
+        controller.abort();
+    }, alfrescoRequestTimeoutMS);
     debug(`Reading student folder info ${folderFullPath}`);
     try {
-        const studentFolderJsonInfo = await got_1.default.get(folderFullPath, {}).json();
+        const response = await (0, node_fetch_1.default)(folderFullPath, { signal: controller.signal });
+        if (!response.ok)
+            throw new Error(`${serverUrl} answered with a HTTP response error: ${response.status}, ${response.statusText} }`);
+        const studentFolderJsonInfo = await response.json();
         if (studentFolderJsonInfo && Object.keys(studentFolderJsonInfo).length) {
             debug(`Successfully accessed the student folder`);
         }
@@ -119,10 +138,19 @@ const readFolder = async ({ serverUrl }, studentInfo, ticket) => {
         }
     }
     catch (error) {
-        if (error.response?.statusCode) {
+        if (error instanceof node_fetch_1.AbortError) {
+            throw new Error('request was aborted or got a timeout');
+        }
+        else if (error.response?.statusCode) {
             error.message += `. URL used: ${folderFullPath}`;
             throw error;
         }
+        else {
+            throw error;
+        }
+    }
+    finally {
+        clearTimeout(timeout);
     }
 };
 exports.readFolder = readFolder;
@@ -132,20 +160,39 @@ exports.readFolder = readFolder;
 const fetchFileAsBase64 = async (filePath, ticket) => {
     const filePathUrl = appendTicketToUrl(filePath, ticket);
     debug(`Getting file '${filePathUrl}' to save as buffer`);
-    const response = await (0, got_1.default)(filePathUrl, {
-        responseType: 'buffer'
-    });
-    return response.body.toString('base64');
+    // set a timeout
+    const controller = new globalThis.AbortController();
+    const timeout = setTimeout(() => {
+        controller.abort();
+    }, alfrescoRequestTimeoutMS);
+    try {
+        const response = await (0, node_fetch_1.default)(filePathUrl, { signal: controller.signal });
+        if (!response.ok)
+            throw new Error(`Server answered with a HTTP response error: ${response.status}, ${response.statusText} }`);
+        const buffer = await response.buffer();
+        return buffer.toString('base64');
+    }
+    catch (error) {
+        if (error instanceof node_fetch_1.AbortError) {
+            throw new Error(`Request ${filePath} was aborted or got a timeout`);
+        }
+        else {
+            throw error;
+        }
+    }
+    finally {
+        clearTimeout(timeout);
+    }
 };
 exports.fetchFileAsBase64 = fetchFileAsBase64;
 /**
  * Get a duplex stream to a file on alfresco
  */
-const getFileStream = (filePath, ticket) => {
+const getFileStream = async (filePath, ticket, abortController) => {
     // see tests to get an example of this stream usage
     const filePathUrl = appendTicketToUrl(filePath, ticket);
     debug(`Getting a stream for '${filePathUrl}'`);
-    return got_1.default.stream(filePathUrl, {});
+    return await (0, node_fetch_1.default)(filePathUrl, { signal: abortController.signal });
 };
 exports.getFileStream = getFileStream;
 /**
@@ -154,14 +201,14 @@ exports.getFileStream = getFileStream;
  * we rename it to copy next to the already set one
  */
 const uploadPDF = async ({ serverUrl }, studentInfo, ticket, pdfFileName, pdfFile) => {
-    const form = new formdata_node_1.FormData();
-    form.set('cmisaction', 'createDocument');
-    form.set('propertyId[0]', 'cmis:objectTypeId');
-    form.set('propertyValue[0]', 'cmis:document');
-    form.set('propertyId[1]', 'cmis:name');
-    form.set('succinct', 'true');
+    const formData = new formdata_node_1.FormData();
+    formData.append('cmisaction', 'createDocument');
+    formData.append('propertyId[0]', 'cmis:objectTypeId');
+    formData.append('propertyValue[0]', 'cmis:document');
+    formData.append('propertyId[1]', 'cmis:name');
+    formData.append('succinct', 'true');
     const pdfBlob = new formdata_node_1.File([pdfFile], pdfFileName);
-    form.set('file', pdfBlob);
+    formData.append('file', pdfBlob);
     const fullPath = buildAlfrescoFullUrl(serverUrl, studentInfo, ticket);
     // we may need to change the filename
     let finalPdfFileName = pdfFileName;
@@ -169,19 +216,33 @@ const uploadPDF = async ({ serverUrl }, studentInfo, ticket, pdfFileName, pdfFil
     let attempt = 0;
     while (attempt < maxRetry) {
         try {
-            form.set('propertyValue[1]', finalPdfFileName);
-            const encoder = new form_data_encoder_1.FormDataEncoder(form);
+            formData.append('propertyValue[1]', finalPdfFileName);
+            const encoder = new form_data_encoder_1.FormDataEncoder(formData);
             debug(`Trying to deposit the file ${finalPdfFileName}`);
-            await got_1.default.post(fullPath, {
-                body: stream_1.Readable.from(encoder.encode()),
-                headers: encoder.headers,
-                timeout: {
-                    request: alfrescoRequestTimeoutMS
-                },
-                retry: {
-                    limit: 0
-                },
-            });
+            // set a timeout
+            const controller = new globalThis.AbortController();
+            const timeout = setTimeout(() => {
+                controller.abort();
+            }, alfrescoRequestTimeoutMS);
+            try {
+                // Post with fetch, oh yeah
+                await (0, node_fetch_1.default)(fullPath, {
+                    headers: encoder.headers,
+                    method: 'POST',
+                    body: stream_1.Readable.from(encoder.encode())
+                });
+            }
+            catch (error) {
+                if (error instanceof node_fetch_1.AbortError) {
+                    throw new Error(`Request on ${serverUrl} was aborted or got a timeout`);
+                }
+                else {
+                    throw error;
+                }
+            }
+            finally {
+                clearTimeout(timeout);
+            }
             let fullFinalUrl = fullPath;
             fullFinalUrl.search = '';
             const fullFinalPath = fullFinalUrl + '/' + finalPdfFileName;

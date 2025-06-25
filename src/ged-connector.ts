@@ -2,14 +2,17 @@
 
 import debug_ from 'debug'
 import * as _ from "lodash";
-import got from 'got'
-import {promisify} from 'node:util';
-import stream from 'node:stream';
-import {Readable} from "stream"
 import {URL} from "url";
-import {FormData, File} from 'formdata-node'
+import {Readable} from "stream"
+import
+  fetch,
+  {AbortError}
+from 'node-fetch';
+import {FormData, File} from 'formdata-node';
+
 // @ts-ignore
-import {FormDataEncoder, FormDataLike} from "form-data-encoder"
+import {FormDataEncoder} from "form-data-encoder";
+
 import {ecolesDoctorales} from "./doctorats"
 import {AlfrescoTicketResponse} from "./alfresco_types"
 import {
@@ -37,19 +40,29 @@ export const fetchTicket = async (
 ): Promise<string> => {
   debug(`Using server ${ serverUrl }`)
 
-  if (username && password) {
-    const alfrescoLoginUrl = new URL(`/alfresco/service/api/login`, serverUrl)
+  if (!username || !password) throw new Error(`Missing username or password to connect to the remote server`)
 
-    alfrescoLoginUrl.search = `u=${ username }&pw=${ password }&format=json`
+  const alfrescoLoginUrl = new URL(`/alfresco/service/api/login`, serverUrl)
 
-    const dataTicket = await got.get(alfrescoLoginUrl, {
-      timeout: {
-        request: alfrescoRequestTimeoutMS
-      },
-      retry: {
-        limit: 0
-      },
-    }).json() as AlfrescoTicketResponse
+  alfrescoLoginUrl.search = `u=${ username }&pw=${ password }&format=json`
+
+  // set a timeout
+  const controller = new globalThis.AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, alfrescoRequestTimeoutMS);
+
+  try {
+    const response = await fetch(
+      alfrescoLoginUrl,
+      { signal: controller.signal }
+    );
+
+    if (!response.ok) throw new Error(
+      `Alfresco answered with a response error. Returned error: ${response}`
+    )
+
+    const dataTicket = await response.json() as AlfrescoTicketResponse
 
     debug(`Asked for the alfresco ticket and got ${JSON.stringify(dataTicket)}`)
 
@@ -58,8 +71,15 @@ export const fetchTicket = async (
     )
 
     return dataTicket.data.ticket
-  } else {
-    throw new Error(`Missing username or password to connect to the remote server`)
+
+  } catch (error) {
+    if (error instanceof AbortError) {
+      throw new Error(`Request on ${ serverUrl } was aborted or got a timeout`);
+    } else {
+      throw error
+    }
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -67,12 +87,13 @@ export const getStudentFolderRelativeUrl = (
   studentInfo: StudentInfo
 ): string => {
   const studentFolderName = `${ studentInfo.studentName }, ${ studentInfo.sciper }`
-  const doctoratName = _.find(ecolesDoctorales, {id: studentInfo.doctoralAcronym})?.label ?? studentInfo.doctoralAcronym
+  const doctoratName = _.find(
+    ecolesDoctorales,
+    {id: studentInfo.doctoralAcronym}
+  )?.label ?? studentInfo.doctoralAcronym
 
-  const studentsFolderURL =
-    `/alfresco/api/-default-/public/cmis/versions/1.1/browser/root/Etudiants/Dossiers%20Etudiants/${encodeURIComponent(studentFolderName)}/${encodeURIComponent(doctoratName)}/Cursus`
-
-  return studentsFolderURL
+  return `/alfresco/api/-default-/public/cmis/versions/1.1/browser/root/` +
+    `Etudiants/Dossiers%20Etudiants/${encodeURIComponent(studentFolderName)}/${encodeURIComponent(doctoratName)}/Cursus`
 }
 
 /**
@@ -117,10 +138,25 @@ export const readFolder = async (
     ticket,
   )
 
+  // set a timeout
+  const controller = new globalThis.AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, alfrescoRequestTimeoutMS);
+
   debug(`Reading student folder info ${ folderFullPath }`)
 
   try {
-    const studentFolderJsonInfo: JSON = await got.get(folderFullPath, {}).json()
+    const response = await fetch(
+      folderFullPath,
+      { signal: controller.signal }
+    )
+
+    if (!response.ok) throw new Error(
+      `${serverUrl} answered with a HTTP response error: ${ response.status }, ${ response.statusText } }`
+    )
+
+    const studentFolderJsonInfo: JSON = await response.json()
 
     if (studentFolderJsonInfo && Object.keys(studentFolderJsonInfo).length) {
       debug(`Successfully accessed the student folder`)
@@ -128,10 +164,16 @@ export const readFolder = async (
       debug(`Fetched a student folder but empty ${studentFolderJsonInfo}`)
     }
   } catch(error: any) {
-    if (error.response?.statusCode) {
+    if (error instanceof AbortError) {
+      throw new Error('request was aborted or got a timeout');
+    } else if (error.response?.statusCode) {
       error.message += `. URL used: ${folderFullPath}`
       throw error
+    } else {
+      throw error
     }
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -146,29 +188,54 @@ export const fetchFileAsBase64 = async (
 
   debug(`Getting file '${ filePathUrl }' to save as buffer`)
 
-  const response = await got(
-    filePathUrl,
-    {
-      responseType: 'buffer'
-    }
-  )
+  // set a timeout
+  const controller = new globalThis.AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, alfrescoRequestTimeoutMS);
 
-  return response.body.toString('base64')
+  try {
+    const response = await fetch(
+      filePathUrl,
+      { signal: controller.signal }
+    )
+
+    if (!response.ok) throw new Error(
+      `Server answered with a HTTP response error: ${ response.status }, ${ response.statusText } }`
+    )
+
+    const buffer = await response.buffer()
+
+    return buffer.toString('base64')
+
+  } catch (error) {
+    if (error instanceof AbortError) {
+      throw new Error(`Request ${ filePath } was aborted or got a timeout`);
+    } else {
+      throw error
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 /**
  * Get a duplex stream to a file on alfresco
  */
-export const getFileStream = (
+export const getFileStream = async (
   filePath: string,
   ticket: string,
+  abortController: AbortController
 ) => {
   // see tests to get an example of this stream usage
   const filePathUrl = appendTicketToUrl(filePath, ticket)
 
   debug(`Getting a stream for '${filePathUrl}'`)
 
-  return got.stream(filePathUrl, {})
+  return await fetch(
+    filePathUrl,
+    { signal: abortController.signal }
+  )
 }
 
 /**
@@ -183,15 +250,15 @@ export const uploadPDF = async (
   pdfFileName: string,
   pdfFile: Buffer
 ) => {
-  const form = new FormData()
-  form.set('cmisaction', 'createDocument')
-  form.set('propertyId[0]', 'cmis:objectTypeId')
-  form.set('propertyValue[0]', 'cmis:document')
-  form.set('propertyId[1]', 'cmis:name')
-  form.set('succinct', 'true')
+  const formData = new FormData()
+  formData.append('cmisaction', 'createDocument')
+  formData.append('propertyId[0]', 'cmis:objectTypeId')
+  formData.append('propertyValue[0]', 'cmis:document')
+  formData.append('propertyId[1]', 'cmis:name')
+  formData.append('succinct', 'true')
 
   const pdfBlob = new File([pdfFile], pdfFileName)
-  form.set('file', pdfBlob)
+  formData.append('file', pdfBlob)
 
   const fullPath = buildAlfrescoFullUrl(
     serverUrl,
@@ -206,24 +273,36 @@ export const uploadPDF = async (
 
   while (attempt < maxRetry) {
     try {
-      form.set('propertyValue[1]', finalPdfFileName)
-      const encoder = new FormDataEncoder(form as FormDataLike)
+      formData.append('propertyValue[1]', finalPdfFileName)
+      const encoder = new FormDataEncoder(formData)
 
       debug(`Trying to deposit the file ${finalPdfFileName}`)
 
-      await got.post(
-        fullPath,
-        {
-          body: Readable.from(encoder.encode()),
-          headers: encoder.headers,
-          timeout: {
-            request: alfrescoRequestTimeoutMS
-          },
-          retry: {
-            limit: 0
-          },
+      // set a timeout
+      const controller = new globalThis.AbortController();
+      const timeout = setTimeout(() => {
+        controller.abort();
+      }, alfrescoRequestTimeoutMS);
+
+      try {
+        // Post with fetch, oh yeah
+        await fetch(
+          fullPath,
+          {
+            headers: encoder.headers,
+            method: 'POST',
+            body: Readable.from(encoder.encode())
+          }
+        )
+      } catch (error) {
+        if (error instanceof AbortError) {
+          throw new Error(`Request on ${ serverUrl } was aborted or got a timeout`);
+        } else {
+          throw error
         }
-      )
+      } finally {
+        clearTimeout(timeout);
+      }
 
       let fullFinalUrl = fullPath
       fullFinalUrl.search = ''

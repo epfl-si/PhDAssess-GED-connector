@@ -92,7 +92,7 @@ describe('Testing GED deposit', async () => {
     const pdfFile = fs.readFileSync(__dirname + '/sample.pdf',);
     const base64String = pdfFile.toString('base64');
 
-    const pdfFileName = `Rapport annuel doctorat.pdf`
+    const pdfFileName = `Rapport annuel doctorat-allo2.pdf`
     const pdfFileBuffer = Buffer.from(base64String, 'base64')
 
     const ticket = await fetchTicket(alfrescoInfo)
@@ -113,14 +113,14 @@ describe('Testing GED deposit', async () => {
 
     await checkForPdfBase64StringValidity(pdfAsBase64)
 
-  }).timeout(5000)  // 2000, the default, is not enough for this operation
+  }).timeout(10000)  // 2000, the default, is not enough for this operation
 
 
   it('should fetch a pdf as a base64 string', async () => {
 
     const ticket = await fetchTicket(alfrescoInfo)
 
-    expect(pdfFullPath).to.not.be.empty;
+    expect(pdfFullPath, 'Please set up the env var PDFANNEXPATH correctly').to.not.be.empty;
 
     const pdfAsBase64 = await fetchFileAsBase64(
       pdfFullPath,
@@ -141,7 +141,7 @@ describe('Testing GED deposit', async () => {
 
   it('should stream a pdf to a file', async () => {
 
-    expect(pdfFullPath).to.not.be.empty;
+    expect(pdfFullPath, 'Please set up the env var PDFANNEXPATH correctly').to.not.be.empty;
 
     const ticket = await fetchTicket(alfrescoInfo)
 
@@ -151,23 +151,36 @@ describe('Testing GED deposit', async () => {
 
     expect(destinationPath).to.not.be.a.path();
 
+    // set a timeout
+    const controller = new globalThis.AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, 40000);
+
     // Set the stream to the remote file
-    const alfrescoStream = getFileStream(
+    const alfrescoStream = await getFileStream(
       pdfFullPath,
       ticket,
+      controller
     )
 
-    // Set the stream to the filesystem
-    const fileStream = fs.createWriteStream(destinationPath)
+    try {
+      // Set the stream to the filesystem
+      const fileStream = fs.createWriteStream(destinationPath)
 
-    // Pipe them
-    // from https://github.com/sindresorhus/got/blob/v12.6.1/documentation/3-streams.md
-    const pipeline = promisify(stream.pipeline);
+      // Pipe them
+      // from https://github.com/sindresorhus/got/blob/v12.6.1/documentation/3-streams.md
+      const pipeline = promisify(stream.pipeline);
 
-    await pipeline(
-      alfrescoStream,
-      fileStream,
-    )
+      await pipeline(
+        alfrescoStream.body,
+        fileStream,
+      )
+    } catch (error) {
+      throw error
+    } finally {
+      clearTimeout(timeout);
+    }
 
     expect(destinationPath).to.be.a.path();
     const pdf = getDocument(destinationPath)

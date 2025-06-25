@@ -90,17 +90,17 @@ describe('Testing GED deposit', async () => {
         // read the pdf file to base64
         const pdfFile = fs.readFileSync(__dirname + '/sample.pdf');
         const base64String = pdfFile.toString('base64');
-        const pdfFileName = `Rapport annuel doctorat.pdf`;
+        const pdfFileName = `Rapport annuel doctorat-allo2.pdf`;
         const pdfFileBuffer = Buffer.from(base64String, 'base64');
         const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
         pdfFullPath = await (0, src_1.uploadPDF)(alfrescoInfo, studentInfo, ticket, pdfFileName, pdfFileBuffer);
         // Try to read back the file
         const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(pdfFullPath, ticket);
         await checkForPdfBase64StringValidity(pdfAsBase64);
-    }).timeout(5000); // 2000, the default, is not enough for this operation
+    }).timeout(10000); // 2000, the default, is not enough for this operation
     it('should fetch a pdf as a base64 string', async () => {
         const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
-        (0, chai_1.expect)(pdfFullPath).to.not.be.empty;
+        (0, chai_1.expect)(pdfFullPath, 'Please set up the env var PDFANNEXPATH correctly').to.not.be.empty;
         const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(pdfFullPath, ticket);
         (0, chai_1.expect)(pdfAsBase64).to.not.be.empty;
         // can we decode this with base64 ?
@@ -108,20 +108,33 @@ describe('Testing GED deposit', async () => {
         await checkForPdfBase64StringValidity(pdfAsBase64);
     });
     it('should stream a pdf to a file', async () => {
-        (0, chai_1.expect)(pdfFullPath).to.not.be.empty;
+        (0, chai_1.expect)(pdfFullPath, 'Please set up the env var PDFANNEXPATH correctly').to.not.be.empty;
         const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
         const destinationPath = path.join('/tmp', pdfFullPath.split('/').pop());
         if (fs.existsSync(destinationPath))
             fs.unlinkSync(destinationPath);
         (0, chai_1.expect)(destinationPath).to.not.be.a.path();
+        // set a timeout
+        const controller = new globalThis.AbortController();
+        const timeout = setTimeout(() => {
+            controller.abort();
+        }, 40000);
         // Set the stream to the remote file
-        const alfrescoStream = (0, src_1.getFileStream)(pdfFullPath, ticket);
-        // Set the stream to the filesystem
-        const fileStream = fs.createWriteStream(destinationPath);
-        // Pipe them
-        // from https://github.com/sindresorhus/got/blob/v12.6.1/documentation/3-streams.md
-        const pipeline = (0, node_util_1.promisify)(node_stream_1.default.pipeline);
-        await pipeline(alfrescoStream, fileStream);
+        const alfrescoStream = await (0, src_1.getFileStream)(pdfFullPath, ticket, controller);
+        try {
+            // Set the stream to the filesystem
+            const fileStream = fs.createWriteStream(destinationPath);
+            // Pipe them
+            // from https://github.com/sindresorhus/got/blob/v12.6.1/documentation/3-streams.md
+            const pipeline = (0, node_util_1.promisify)(node_stream_1.default.pipeline);
+            await pipeline(alfrescoStream.body, fileStream);
+        }
+        catch (error) {
+            throw error;
+        }
+        finally {
+            clearTimeout(timeout);
+        }
         (0, chai_1.expect)(destinationPath).to.be.a.path();
         const pdf = (0, pdf_mjs_1.getDocument)(destinationPath);
         const doc = await pdf.promise;
