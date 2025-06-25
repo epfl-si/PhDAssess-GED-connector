@@ -191,4 +191,4 @@ describe('Testing GED deposit', async () => {
 
   })
 
-})
+}).timeout(5000);  // raise the default, sometimes we can have lag spikes
