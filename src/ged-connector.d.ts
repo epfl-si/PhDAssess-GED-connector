@@ -1,4 +1,5 @@
 import fetch from 'node-fetch';
+import { AbortController } from "node-abort-controller";
 import { AlfrescoInfo, StudentInfo } from './types';
 export declare const fetchTicket: ({ serverUrl, username, password }: AlfrescoInfo) => Promise<string>;
 export declare const getStudentFolderRelativeUrl: (studentInfo: StudentInfo) => string;

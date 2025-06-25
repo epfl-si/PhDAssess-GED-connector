@@ -1,6 +1,6 @@
 {
   "name": "phdassess-ged-connector",
-  "version": "1.9.1",
+  "version": "1.9.2",
   "main": "src/index.js",
   "scripts": {
     "test": "DEBUG=ged-connector mocha tests/**/*.test.ts"
@@ -16,6 +16,7 @@
     "form-data-encoder": "^1.9.0",
     "formdata-node": "^4.2.4",
     "lodash": "^4.17.21",
+    "node-abort-controller": "^3.1.1",
     "node-fetch": "^2.7.0"
   },
   "devDependencies": {

@@ -12,6 +12,7 @@ import {FormData, File} from 'formdata-node';
 
 // @ts-ignore
 import {FormDataEncoder} from "form-data-encoder";
+import {AbortController} from "node-abort-controller";
 
 import {ecolesDoctorales} from "./doctorats"
 import {AlfrescoTicketResponse} from "./alfresco_types"
@@ -55,6 +56,7 @@ export const fetchTicket = async (
   try {
     const response = await fetch(
       alfrescoLoginUrl,
+      // @ts-ignore
       { signal: controller.signal }
     );
 
@@ -149,6 +151,7 @@ export const readFolder = async (
   try {
     const response = await fetch(
       folderFullPath,
+      // @ts-ignore
       { signal: controller.signal }
     )
 
@@ -197,6 +200,7 @@ export const fetchFileAsBase64 = async (
   try {
     const response = await fetch(
       filePathUrl,
+      // @ts-ignore
       { signal: controller.signal }
     )
 
@@ -234,6 +238,7 @@ export const getFileStream = async (
 
   return await fetch(
     filePathUrl,
+    // @ts-ignore
     { signal: abortController.signal }
   )
 }

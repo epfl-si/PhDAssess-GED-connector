@@ -7,6 +7,7 @@ import * as fs from 'node:fs';
 import {promisify} from 'node:util';
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import stream from 'node:stream';
+import { AbortController } from "node-abort-controller";
 
 require('dotenv').config()
 
@@ -152,7 +153,7 @@ describe('Testing GED deposit', async () => {
     expect(destinationPath).to.not.be.a.path();
 
     // set a timeout
-    const controller = new globalThis.AbortController();
+    const controller = new AbortController();
     const timeout = setTimeout(() => {
       controller.abort();
     }, 40000);

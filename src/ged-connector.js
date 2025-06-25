@@ -46,6 +46,7 @@ const node_fetch_1 = __importStar(require("node-fetch"));
 const formdata_node_1 = require("formdata-node");
 // @ts-ignore
 const form_data_encoder_1 = require("form-data-encoder");
+const node_abort_controller_1 = require("node-abort-controller");
 const doctorats_1 = require("./doctorats");
 const debug = (0, debug_1.default)('ged-connector');
 const alfrescoRequestTimeoutMS = 40000; // 40 seconds
@@ -63,12 +64,14 @@ const fetchTicket = async ({ serverUrl, username, password }) => {
     const alfrescoLoginUrl = new url_1.URL(`/alfresco/service/api/login`, serverUrl);
     alfrescoLoginUrl.search = `u=${username}&pw=${password}&format=json`;
     // set a timeout
-    const controller = new AbortController();
+    const controller = new node_abort_controller_1.AbortController();
     const timeout = setTimeout(() => {
         controller.abort();
     }, alfrescoRequestTimeoutMS);
     try {
-        const response = await (0, node_fetch_1.default)(alfrescoLoginUrl, { signal: controller.signal });
+        const response = await (0, node_fetch_1.default)(alfrescoLoginUrl, 
+        // @ts-ignore
+        { signal: controller.signal });
         if (!response.ok)
             throw new Error(`Alfresco answered with a response error. Returned error: ${response}`);
         const dataTicket = await response.json();
@@ -120,13 +123,15 @@ const buildAlfrescoFullUrl = (serverUrl, studentInfo, ticket, fileName = '') => 
 const readFolder = async ({ serverUrl }, studentInfo, ticket) => {
     const folderFullPath = buildAlfrescoFullUrl(serverUrl, studentInfo, ticket);
     // set a timeout
-    const controller = new AbortController();
+    const controller = new node_abort_controller_1.AbortController();
     const timeout = setTimeout(() => {
         controller.abort();
     }, alfrescoRequestTimeoutMS);
     debug(`Reading student folder info ${folderFullPath}`);
     try {
-        const response = await (0, node_fetch_1.default)(folderFullPath, { signal: controller.signal });
+        const response = await (0, node_fetch_1.default)(folderFullPath, 
+        // @ts-ignore
+        { signal: controller.signal });
         if (!response.ok)
             throw new Error(`${serverUrl} answered with a HTTP response error: ${response.status}, ${response.statusText} }`);
         const studentFolderJsonInfo = await response.json();
@@ -161,12 +166,14 @@ const fetchFileAsBase64 = async (filePath, ticket) => {
     const filePathUrl = appendTicketToUrl(filePath, ticket);
     debug(`Getting file '${filePathUrl}' to save as buffer`);
     // set a timeout
-    const controller = new AbortController();
+    const controller = new node_abort_controller_1.AbortController();
     const timeout = setTimeout(() => {
         controller.abort();
     }, alfrescoRequestTimeoutMS);
     try {
-        const response = await (0, node_fetch_1.default)(filePathUrl, { signal: controller.signal });
+        const response = await (0, node_fetch_1.default)(filePathUrl, 
+        // @ts-ignore
+        { signal: controller.signal });
         if (!response.ok)
             throw new Error(`Server answered with a HTTP response error: ${response.status}, ${response.statusText} }`);
         const buffer = await response.buffer();
@@ -192,7 +199,9 @@ const getFileStream = async (filePath, ticket, abortController) => {
     // see tests to get an example of this stream usage
     const filePathUrl = appendTicketToUrl(filePath, ticket);
     debug(`Getting a stream for '${filePathUrl}'`);
-    return await (0, node_fetch_1.default)(filePathUrl, { signal: abortController.signal });
+    return await (0, node_fetch_1.default)(filePathUrl, 
+    // @ts-ignore
+    { signal: abortController.signal });
 };
 exports.getFileStream = getFileStream;
 /**
@@ -220,7 +229,7 @@ const uploadPDF = async ({ serverUrl }, studentInfo, ticket, pdfFileName, pdfFil
             const encoder = new form_data_encoder_1.FormDataEncoder(formData);
             debug(`Trying to deposit the file ${finalPdfFileName}`);
             // set a timeout
-            const controller = new AbortController();
+            const controller = new node_abort_controller_1.AbortController();
             const timeout = setTimeout(() => {
                 controller.abort();
             }, alfrescoRequestTimeoutMS);

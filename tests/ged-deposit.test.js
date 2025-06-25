@@ -45,6 +45,7 @@ const fs = __importStar(require("node:fs"));
 const node_util_1 = require("node:util");
 const pdf_mjs_1 = require("pdfjs-dist/legacy/build/pdf.mjs");
 const node_stream_1 = __importDefault(require("node:stream"));
+const node_abort_controller_1 = require("node-abort-controller");
 require('dotenv').config();
 require("mocha");
 const chai = __importStar(require("chai"));
@@ -115,7 +116,7 @@ describe('Testing GED deposit', async () => {
             fs.unlinkSync(destinationPath);
         (0, chai_1.expect)(destinationPath).to.not.be.a.path();
         // set a timeout
-        const controller = new globalThis.AbortController();
+        const controller = new node_abort_controller_1.AbortController();
         const timeout = setTimeout(() => {
             controller.abort();
         }, 40000);
