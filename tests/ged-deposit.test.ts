@@ -42,47 +42,56 @@ const alfrescoInfo: AlfrescoInfo = {
   password: process.env.ALFRESCO_PASSWORD!,
 }
 
-/**
- * If you set something in PDFANNEXPATH in your env,
- * you mean to test this pdf file specifically
- */
-let pdfFullPath = process.env.PDFANNEXPATH!
+// Exclude some test if it looks like we are in a non-test server
+const abortWritingTestIfProd = () => {
+  if (!process.env.ALFRESCO_URL!.includes('test')) {
+    throw new Error(
+      `Failing test because the server may be the production`
+    )
+  }
+}
 
-const checkForPdfBase64StringValidity = async (pdfAsBase64: string) => {
-  expect(pdfAsBase64).to.not.be.empty;
-
-  // can we decode this with base64 ?
-  expect(
-    () => btoa(atob(pdfAsBase64))
-  ).to.not.throw()
-
-  // can we open this as pdf ?
-  const buffer = Buffer.from(pdfAsBase64, 'base64')
-  const pdfGeneratedUint8 = new Uint8Array(buffer)
-
-  const pdf = getDocument({ data: pdfGeneratedUint8 })
-  const doc = await pdf.promise
-
-  expect(doc).to.not.be.empty
-  expect(doc.numPages).to.be.greaterThan(0)
+async function getPdfSampleBytes (fromPath = __dirname + '/sample.pdf') {
+  return await fsp.readFile(fromPath)
 }
 
 
-describe('Testing GED deposit', async () => {
+let ticket = ''
+let pdfUploadedPath = ''  // will receive the uploaded PDF path
+let pdfFile: Buffer
+let pdfFileName: string
 
-  it('should get a ticket', async () => {
 
-    const ticket = await fetchTicket(alfrescoInfo)
+describe('Testing GED deposit and readability', async () => {
 
-    expect(ticket).to.not.be.empty
+  before(async () => {
+    abortWritingTestIfProd();
 
+    ticket = await fetchTicket(alfrescoInfo)
+
+    // the PDF sample used to do the upload
+    pdfFile = await getPdfSampleBytes();
+    pdfFileName = `Rapport-${ makeid() }.pdf`
   })
 
+  beforeEach(async () => {
+    // set an upload if we don't already, allowing to run test independently
+    if (!pdfUploadedPath) {
+      pdfUploadedPath = await uploadPDF(
+        alfrescoInfo,
+        studentInfo,
+        ticket,
+        pdfFileName,
+        pdfFile
+      ) as string
+    }
+  })
+
+  it('should have the ticket', async () => {
+    expect(ticket).to.not.be.empty
+  })
 
   it('should read the student folder', async () => {
-
-    const ticket = await fetchTicket(alfrescoInfo)
-
     await readFolder(
       alfrescoInfo,
       studentInfo,
@@ -90,77 +99,63 @@ describe('Testing GED deposit', async () => {
     )
   })
 
-  async function pdfBytes (fromPath = __dirname + '/sample.pdf') {
-    return await fsp.readFile(fromPath)
-  }
+  it('should upload a pdf file to the student folder', async () => {
 
-  it('should upload a pdf file to the student folder. The pdf become a base 64, then a form data.', async () => {
-    abortWritingTestIfProd();
+    expect(pdfUploadedPath).to.not.be.empty
 
+  })
 
-    // read the pdf file to base64
-    const pdfFile = await pdfBytes();
-    const pdfFileName = `Rapport-{makeid()}.pdf`
+  it('should download and check that is the same file', async () => {
 
-    const ticket = await fetchTicket(alfrescoInfo)
+    expect(
+      pdfUploadedPath,
+      'This test is part of a scenario. Please assert a file has been uploaded firstly'
+    ).to.not.be.empty
 
-    const pdfFullPath = await uploadPDF(
-      alfrescoInfo,
-      studentInfo,
-      ticket,
-      pdfFileName,
-      pdfFile
-    ) as string
-
-    // Try to read back the file
     const pdfAsBase64 = await fetchFileAsBase64(
-      pdfFullPath,
+      pdfUploadedPath,
       ticket
     )
 
-    expect(Buffer.from(pdfAsBase64, "base64")).to.equalBytes(pdfFile)
+    expect(
+      Buffer.from(pdfAsBase64, "base64")
+    // @ts-ignore
+    ).to.equalBytes(pdfFile)
 
-  }).timeout(10000)  // 2000, the default, is not enough for this operation
+  })
 
-  it('picks another filename when uploading to a file that already exists', async () => {
-    abortWritingTestIfProd();
+  it('should pick another filename when uploading to a file with a name that already exists', async () => {
 
-
-    // read the pdf file to base64
-    const pdfFile = await pdfBytes();
-    const pdfFileName = `Rapport-{makeid()}.pdf`
-
-    const ticket = await fetchTicket(alfrescoInfo)
-
-    const pdfFullPath1 = await uploadPDF(
-      alfrescoInfo,
-      studentInfo,
-      ticket,
-      pdfFileName,
-      pdfFile
-    ) as string
-
-    const pdfFullPath2 = await uploadPDF(
-      alfrescoInfo,
-      studentInfo,
-      ticket,
-      pdfFileName,
-      pdfFile
-    ) as string
-
-    expect(pdfFullPath1).to.not.equal(pdfFullPath2)
-
-  }).timeout(10000)  // 2000, the default, is not enough for this operation
-
-
-  it('should fetch a pdf as a base64 string', async () => {
+    expect(
+      pdfUploadedPath,
+      'This test is part of a scenario. Please assert a file has been uploaded firstly'
+    ).to.not.be.empty
 
     const ticket = await fetchTicket(alfrescoInfo)
 
-    expect(pdfFullPath, 'Please set up the env var PDFANNEXPATH correctly').to.not.be.empty;
+    const pdfUploadedPath2 = await uploadPDF(
+      alfrescoInfo,
+      studentInfo,
+      ticket,
+      pdfUploadedPath!.split('/')!.pop()!,
+      pdfFile
+    ) as string
+
+    expect(
+      pdfUploadedPath2,
+      `${ pdfUploadedPath.split('/')!.pop()! } should not equal ${ pdfUploadedPath2.split('/')!.pop()! }`
+    ).to.not.equal(pdfUploadedPath)
+  })
+
+  it('should fetch the pdf as a base64 string and be openable as PDF', async () => {
+
+    expect(
+      pdfUploadedPath,
+      'This test is part of a scenario. Please assert a file has been uploaded firstly'
+    ).to.not.be.empty
 
     const pdfAsBase64 = await fetchFileAsBase64(
-      pdfFullPath,
+      pdfUploadedPath,
       ticket,
     )
 
@@ -171,18 +166,21 @@ describe('Testing GED deposit', async () => {
       () => btoa(atob(pdfAsBase64))
     ).to.not.throw()
 
-    await checkForPdfBase64StringValidity(pdfAsBase64)
+    // can we open this as pdf ?
+    const buffer = Buffer.from(pdfAsBase64, 'base64')
+    const pdfGeneratedUint8 = new Uint8Array(buffer)
+
+    const pdf = getDocument({ data: pdfGeneratedUint8 })
+    const doc = await pdf.promise
+
+    expect(doc).to.not.be.empty
+    expect(doc.numPages).to.be.greaterThan(0)
 
   })
 
-
   it('should stream a pdf to a file', async () => {
 
-    expect(pdfFullPath, 'Please set up the env var PDFANNEXPATH correctly').to.not.be.empty;
-
-    const ticket = await fetchTicket(alfrescoInfo)
-
-    const destinationPath = path.join('/tmp', pdfFullPath.split('/').pop()!)
+    const destinationPath = path.join('/tmp', pdfFileName)
 
     if (fs.existsSync(destinationPath)) fs.unlinkSync(destinationPath)
 
@@ -196,7 +194,7 @@ describe('Testing GED deposit', async () => {
 
     // Set the stream to the remote file
     const alfrescoStream = await getFileStream(
-      pdfFullPath,
+      pdfUploadedPath,
       ticket,
       controller
     )
@@ -220,6 +218,7 @@ describe('Testing GED deposit', async () => {
     }
 
     expect(destinationPath).to.be.a.path();
+    console.log(`Successfully written the file ${ destinationPath}`)
     const pdf = getDocument(destinationPath)
     const doc = await pdf.promise
 
@@ -228,9 +227,4 @@ describe('Testing GED deposit', async () => {
 
   })
 
-}).timeout(5000);  // raise the default, sometimes we can have lag spikes
-
-function abortWritingTestIfProd () {
-  // don't do this test if it looks like we are in a non-test server
-  if (!process.env.ALFRESCO_URL!.includes('test')) throw new Error(`Failing test because the server may be the production`)
-}
+}).timeout(5000);  // raise the default, operation are network dependent
