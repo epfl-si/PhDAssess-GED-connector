@@ -90,9 +90,8 @@ describe('Testing GED deposit', async () => {
 
 
   it('should upload a pdf file to the student folder. The pdf become a base 64, then a form data.', async () => {
+    abortWritingTestIfProd();
 
-    // don't do this test if it looks like we are in a non-test server
-    if (!process.env.ALFRESCO_URL!.includes('test')) throw new Error(`Failing test because the server may be the production`)
 
     // read the pdf file to base64
     const pdfFile = fs.readFileSync(__dirname + '/sample.pdf',);
@@ -198,3 +197,8 @@ describe('Testing GED deposit', async () => {
   })
 
 }).timeout(5000);  // raise the default, sometimes we can have lag spikes
+
+function abortWritingTestIfProd () {
+  // don't do this test if it looks like we are in a non-test server
+  if (!process.env.ALFRESCO_URL!.includes('test')) throw new Error(`Failing test because the server may be the production`)
+}
