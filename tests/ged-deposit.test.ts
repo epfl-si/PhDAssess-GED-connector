@@ -94,9 +94,6 @@ describe('Testing GED deposit', async () => {
     // don't do this test if it looks like we are in a non-test server
     if (!process.env.ALFRESCO_URL!.includes('test')) throw new Error(`Failing test because the server may be the production`)
 
-    // skip this test if we manually provided a file from env
-    if (pdfFullPath) return
-
     // read the pdf file to base64
     const pdfFile = fs.readFileSync(__dirname + '/sample.pdf',);
     const base64String = pdfFile.toString('base64');
@@ -106,7 +103,7 @@ describe('Testing GED deposit', async () => {
 
     const ticket = await fetchTicket(alfrescoInfo)
 
-    pdfFullPath = await uploadPDF(
+    const pdfFullPath = await uploadPDF(
       alfrescoInfo,
       studentInfo,
       ticket,
