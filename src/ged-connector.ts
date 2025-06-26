@@ -6,8 +6,8 @@ import {URL} from "url";
 import {Readable} from "stream"
 import
   fetch,
-  {AbortError}
-from 'node-fetch';
+{AbortError, FetchError}
+  from 'node-fetch';
 import {FormData, File} from 'formdata-node';
 
 // @ts-ignore
@@ -77,6 +77,9 @@ export const fetchTicket = async (
   } catch (error) {
     if (error instanceof AbortError) {
       throw new Error(`Request on ${ serverUrl } was aborted or got a timeout`);
+    } else if (error instanceof FetchError) {
+      // hide server url in message that Fetch expose
+      throw new Error(`Fetch got an error code: ${ error.code }`)
     } else {
       throw error
     }

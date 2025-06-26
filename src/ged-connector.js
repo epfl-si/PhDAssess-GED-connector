@@ -84,6 +84,10 @@ const fetchTicket = async ({ serverUrl, username, password }) => {
         if (error instanceof node_fetch_1.AbortError) {
             throw new Error(`Request on ${serverUrl} was aborted or got a timeout`);
         }
+        else if (error instanceof node_fetch_1.FetchError) {
+            // hide server url in message that Fetch expose
+            throw new Error(`Fetch got an error code: ${error.code}`);
+        }
         else {
             throw error;
         }
