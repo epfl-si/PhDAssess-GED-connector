@@ -39,6 +39,12 @@ const alfrescoInfo: AlfrescoInfo = {
   password: process.env.ALFRESCO_PASSWORD!,
 }
 
+/**
+ * If you set something in PDFANNEXPATH in your env,
+ * you mean to test this pdf file specifically
+ */
+let pdfFullPath = process.env.PDFANNEXPATH!
+
 const checkForPdfBase64StringValidity = async (pdfAsBase64: string) => {
   expect(pdfAsBase64).to.not.be.empty;
 
@@ -60,8 +66,6 @@ const checkForPdfBase64StringValidity = async (pdfAsBase64: string) => {
 
 
 describe('Testing GED deposit', async () => {
-
-  let pdfFullPath = process.env.PDFANNEXPATH!
 
   it('should get a ticket', async () => {
 
@@ -89,11 +93,14 @@ describe('Testing GED deposit', async () => {
     // don't do this test if it looks like we are in a non-test server
     if (!process.env.ALFRESCO_URL!.includes('test')) throw new Error(`Failing test because the server may be the production`)
 
+    // skip this test if we manually provided a file from env
+    if (pdfFullPath) return
+
     // read the pdf file to base64
     const pdfFile = fs.readFileSync(__dirname + '/sample.pdf',);
     const base64String = pdfFile.toString('base64');
 
-    const pdfFileName = `Rapport annuel doctorat-allo2.pdf`
+    const pdfFileName = `Rapport annuel doctorat annex 2025.pdf`
     const pdfFileBuffer = Buffer.from(base64String, 'base64')
 
     const ticket = await fetchTicket(alfrescoInfo)
