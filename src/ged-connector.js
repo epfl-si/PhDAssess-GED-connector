@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadPDF = exports.getFileStream = exports.fetchFileAsBase64 = exports.readFolder = exports.getStudentFolderRelativeUrl = exports.fetchTicket = void 0;
+exports.uploadPDF = exports.getFileStream = exports.fetchFileAsBase64 = exports.fileNameExists = exports.readFolder = exports.getStudentFolderRelativeUrl = exports.fetchTicket = void 0;
 const debug_1 = __importDefault(require("debug"));
 const _ = __importStar(require("lodash"));
 const url_1 = require("url");
@@ -145,6 +145,7 @@ const readFolder = async ({ serverUrl }, studentInfo, ticket) => {
         else {
             debug(`Fetched a student folder but empty ${studentFolderJsonInfo}`);
         }
+        return studentFolderJsonInfo;
     }
     catch (error) {
         if (error instanceof node_fetch_1.AbortError) {
@@ -163,6 +164,13 @@ const readFolder = async ({ serverUrl }, studentInfo, ticket) => {
     }
 };
 exports.readFolder = readFolder;
+/**
+ * Check if a file name already exists
+ */
+const fileNameExists = (fileNameToFind, studentFolderJsonInfo) => {
+    return _.find(studentFolderJsonInfo.objects, { object: { properties: { 'cmis:name': { value: fileNameToFind } } } }) !== undefined;
+};
+exports.fileNameExists = fileNameExists;
 /**
  * Get a pdf file in a base64 format
  */
@@ -213,22 +221,31 @@ exports.getFileStream = getFileStream;
  * File name can change from the provided one as it may already have one, so
  * we rename it to copy next to the already set one
  */
-const uploadPDF = async ({ serverUrl }, studentInfo, ticket, pdfFileName, pdfFile) => {
-    const formData = new formdata_node_1.FormData();
-    formData.append('cmisaction', 'createDocument');
-    formData.append('propertyId[0]', 'cmis:objectTypeId');
-    formData.append('propertyValue[0]', 'cmis:document');
-    formData.append('propertyId[1]', 'cmis:name');
-    formData.append('succinct', 'true');
-    const pdfBlob = new formdata_node_1.File([pdfFile], pdfFileName);
-    formData.append('file', pdfBlob);
-    const fullPath = buildAlfrescoFullUrl(serverUrl, studentInfo, ticket);
-    // we may need to change the filename
-    let finalPdfFileName = pdfFileName;
-    const maxRetry = 50;
+const uploadPDF = async (alfrescoInfo, studentInfo, ticket, pdfFileName, pdfFile) => {
+    // let's validate a good name first
+    const folderCmisObjects = await (0, exports.readFolder)(alfrescoInfo, studentInfo, ticket);
+    const fullPath = buildAlfrescoFullUrl(alfrescoInfo.serverUrl, studentInfo, ticket);
+    const maxRetry = 25;
     let attempt = 0;
+    let finalPdfFileName = pdfFileName;
     while (attempt < maxRetry) {
-        try {
+        if ((0, exports.fileNameExists)(finalPdfFileName, folderCmisObjects)) {
+            // this name is not free, build a new one
+            attempt++;
+            finalPdfFileName = finalPdfFileName.match(/_v(\d+)(\.[^.]*)$/)
+                ? finalPdfFileName.replace(/_v(\d+)(\.[^.]*)$/, (_, v, ext) => `_v${+v + 1}${ext}`)
+                : finalPdfFileName.replace(/(\.[^.]*)$/, "_v1$1");
+        }
+        else {
+            // ok, the name should be good, let's upload the file
+            const formData = new formdata_node_1.FormData();
+            formData.append('cmisaction', 'createDocument');
+            formData.append('propertyId[0]', 'cmis:objectTypeId');
+            formData.append('propertyValue[0]', 'cmis:document');
+            formData.append('propertyId[1]', 'cmis:name');
+            formData.append('succinct', 'true');
+            const pdfBlob = new formdata_node_1.File([pdfFile], finalPdfFileName);
+            formData.append('file', pdfBlob);
             formData.append('propertyValue[1]', finalPdfFileName);
             const encoder = new form_data_encoder_1.FormDataEncoder(formData);
             debug(`Trying to deposit the file ${finalPdfFileName}`);
@@ -247,7 +264,7 @@ const uploadPDF = async ({ serverUrl }, studentInfo, ticket, pdfFileName, pdfFil
             }
             catch (error) {
                 if (error instanceof node_fetch_1.AbortError) {
-                    throw new Error(`Request on ${serverUrl} was aborted or got a timeout`);
+                    throw new Error(`Request on ${alfrescoInfo.serverUrl} was aborted or got a timeout`);
                 }
                 else {
                     throw error;
@@ -262,21 +279,8 @@ const uploadPDF = async ({ serverUrl }, studentInfo, ticket, pdfFileName, pdfFil
             debug(`Successfully uploaded a file. Requested name : ${pdfFileName}. Final path : ${fullFinalPath}`);
             return fullFinalPath;
         }
-        catch (error) {
-            if (error.response?.statusCode === 409) {
-                // retry with a different name
-                debug(`The File name conflict. Retrying`);
-                // the regex allows to capture the filename extension (.pdf)
-                attempt++;
-                // add the _v1, or increment
-                finalPdfFileName = finalPdfFileName.match(/_v(\d+)(\.[^.]*)$/)
-                    ? finalPdfFileName.replace(/_v(\d+)(\.[^.]*)$/, (_, v, ext) => `_v${+v + 1}${ext}`)
-                    : finalPdfFileName.replace(/(\.[^.]*)$/, "_v1$1");
-            }
-            else {
-                throw error; // Rethrow or handle other errors as needed
-            }
-        }
     }
+    // all attempts have failed
+    throw new Error(`Unable to find a free name for the document`);
 };
 exports.uploadPDF = uploadPDF;

@@ -26,7 +26,7 @@ import {
   fetchFileAsBase64,
   getFileStream,
   StudentInfo,
-  AlfrescoInfo
+  AlfrescoInfo, fileNameExists
 } from "../src";
 
 
@@ -70,7 +70,7 @@ describe('Testing GED deposit and readability', async () => {
     ticket = await fetchTicket(alfrescoInfo)
 
     // the PDF sample used to do the upload
-    pdfFile = await getPdfSampleBytes();
+    pdfFile = await getPdfSampleBytes(__dirname + '/sample.pdf');
     pdfFileName = `Rapport-${ makeid() }.pdf`
   })
 
@@ -107,11 +107,6 @@ describe('Testing GED deposit and readability', async () => {
 
   it('should download and check that is the same file', async () => {
 
-    expect(
-      pdfUploadedPath,
-      'This test is part of a scenario. Please assert a file has been uploaded firstly'
-    ).to.not.be.empty
-
     const pdfAsBase64 = await fetchFileAsBase64(
       pdfUploadedPath,
       ticket
@@ -124,35 +119,7 @@ describe('Testing GED deposit and readability', async () => {
 
   })
 
-  it('should pick another filename when uploading to a file with a name that already exists', async () => {
-
-    expect(
-      pdfUploadedPath,
-      'This test is part of a scenario. Please assert a file has been uploaded firstly'
-    ).to.not.be.empty
-
-    const ticket = await fetchTicket(alfrescoInfo)
-
-    const pdfUploadedPath2 = await uploadPDF(
-      alfrescoInfo,
-      studentInfo,
-      ticket,
-      pdfUploadedPath!.split('/')!.pop()!,
-      pdfFile
-    ) as string
-
-    expect(
-      pdfUploadedPath2,
-      `${ pdfUploadedPath.split('/')!.pop()! } should not equal ${ pdfUploadedPath2.split('/')!.pop()! }`
-    ).to.not.equal(pdfUploadedPath)
-  })
-
   it('should fetch the pdf as a base64 string and be openable as PDF', async () => {
-
-    expect(
-      pdfUploadedPath,
-      'This test is part of a scenario. Please assert a file has been uploaded firstly'
-    ).to.not.be.empty
 
     const pdfAsBase64 = await fetchFileAsBase64(
       pdfUploadedPath,
@@ -224,6 +191,49 @@ describe('Testing GED deposit and readability', async () => {
 
     expect(doc).to.not.be.empty
     expect(doc.numPages).to.be.greaterThan(0)
+
+  })
+
+  it('should check if a file name already exists in the folder', async () => {
+
+    const folderCmisObjects = await readFolder(
+      alfrescoInfo,
+      studentInfo,
+      ticket
+    ) as any
+
+    expect(
+      fileNameExists(
+        pdfUploadedPath!.split('/')!.pop()!,
+        folderCmisObjects
+      )
+    ).to.be.true
+
+    expect(
+      fileNameExists(
+        // should be a free name
+        pdfUploadedPath!.split('/')!.pop()! + makeid(),
+        folderCmisObjects
+      )
+    ).to.be.false
+
+  })
+
+  // This behavior is so surprising that I have a test to demonstrate it
+  it('should do a name switch when the file uploaded has a name already set', async () => {
+
+    // Post a file with same name
+    const pdfUploadedPath2 = await uploadPDF(
+      alfrescoInfo,
+      studentInfo,
+      ticket,
+      pdfUploadedPath!.split('/')!.pop()!,
+      pdfFile
+    )
+
+    expect(
+      pdfUploadedPath2.split('/').pop()
+    ).to.not.equal(pdfUploadedPath.split('/').pop())
 
   })
 

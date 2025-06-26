@@ -42,15 +42,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
  */
 const path = __importStar(require("node:path"));
 const fs = __importStar(require("node:fs"));
+const fsp = __importStar(require("node:fs/promises"));
 const node_util_1 = require("node:util");
 const pdf_mjs_1 = require("pdfjs-dist/legacy/build/pdf.mjs");
 const node_stream_1 = __importDefault(require("node:stream"));
 const node_abort_controller_1 = require("node-abort-controller");
+const filenames_1 = require("./lib/filenames");
 require('dotenv').config();
 require("mocha");
 const chai = __importStar(require("chai"));
 const chai_1 = require("chai");
 chai.use(require('chai-fs'));
+chai.use(require('chai-bytes'));
 const src_1 = require("../src");
 const studentInfo = {
     doctoralAcronym: process.env.PHDSTUDENTDOCTORATACRONYM,
@@ -62,56 +65,63 @@ const alfrescoInfo = {
     username: process.env.ALFRESCO_USERNAME,
     password: process.env.ALFRESCO_PASSWORD,
 };
-const checkForPdfBase64StringValidity = async (pdfAsBase64) => {
-    (0, chai_1.expect)(pdfAsBase64).to.not.be.empty;
-    // can we decode this with base64 ?
-    (0, chai_1.expect)(() => btoa(atob(pdfAsBase64))).to.not.throw();
-    // can we open this as pdf ?
-    const buffer = Buffer.from(pdfAsBase64, 'base64');
-    const pdfGeneratedUint8 = new Uint8Array(buffer);
-    const pdf = (0, pdf_mjs_1.getDocument)({ data: pdfGeneratedUint8 });
-    const doc = await pdf.promise;
-    (0, chai_1.expect)(doc).to.not.be.empty;
-    (0, chai_1.expect)(doc.numPages).to.be.greaterThan(0);
+// Exclude some test if it looks like we are in a non-test server
+const abortWritingTestIfProd = () => {
+    if (!process.env.ALFRESCO_URL.includes('test')) {
+        throw new Error(`Failing test because the server may be the production`);
+    }
 };
-describe('Testing GED deposit', async () => {
-    let pdfFullPath = process.env.PDFANNEXPATH;
-    it('should get a ticket', async () => {
-        const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
+async function getPdfSampleBytes(fromPath = __dirname + '/sample.pdf') {
+    return await fsp.readFile(fromPath);
+}
+let ticket = '';
+let pdfUploadedPath = ''; // will receive the uploaded PDF path
+let pdfFile;
+let pdfFileName;
+describe('Testing GED deposit and readability', async () => {
+    before(async () => {
+        abortWritingTestIfProd();
+        ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
+        // the PDF sample used to do the upload
+        pdfFile = await getPdfSampleBytes(__dirname + '/sample.pdf');
+        pdfFileName = `Rapport-${(0, filenames_1.makeid)()}.pdf`;
+    });
+    beforeEach(async () => {
+        // set an upload if we don't already, allowing to run test independently
+        if (!pdfUploadedPath) {
+            pdfUploadedPath = await (0, src_1.uploadPDF)(alfrescoInfo, studentInfo, ticket, pdfFileName, pdfFile);
+        }
+    });
+    it('should have the ticket', async () => {
         (0, chai_1.expect)(ticket).to.not.be.empty;
     });
     it('should read the student folder', async () => {
-        const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
         await (0, src_1.readFolder)(alfrescoInfo, studentInfo, ticket);
     });
-    it('should upload a pdf file to the student folder. The pdf become a base 64, then a form data.', async () => {
-        // don't do this test if it looks like we are in a non-test server
-        if (!process.env.ALFRESCO_URL.includes('test'))
-            throw new Error(`Failing test because the server may be the production`);
-        // read the pdf file to base64
-        const pdfFile = fs.readFileSync(__dirname + '/sample.pdf');
-        const base64String = pdfFile.toString('base64');
-        const pdfFileName = `Rapport annuel doctorat-allo2.pdf`;
-        const pdfFileBuffer = Buffer.from(base64String, 'base64');
-        const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
-        pdfFullPath = await (0, src_1.uploadPDF)(alfrescoInfo, studentInfo, ticket, pdfFileName, pdfFileBuffer);
-        // Try to read back the file
-        const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(pdfFullPath, ticket);
-        await checkForPdfBase64StringValidity(pdfAsBase64);
-    }).timeout(10000); // 2000, the default, is not enough for this operation
-    it('should fetch a pdf as a base64 string', async () => {
-        const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
-        (0, chai_1.expect)(pdfFullPath, 'Please set up the env var PDFANNEXPATH correctly').to.not.be.empty;
-        const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(pdfFullPath, ticket);
+    it('should upload a pdf file to the student folder', async () => {
+        (0, chai_1.expect)(pdfUploadedPath).to.not.be.empty;
+    });
+    it('should download and check that is the same file', async () => {
+        const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(pdfUploadedPath, ticket);
+        (0, chai_1.expect)(Buffer.from(pdfAsBase64, "base64")
+        // @ts-ignore
+        ).to.equalBytes(pdfFile);
+    });
+    it('should fetch the pdf as a base64 string and be openable as PDF', async () => {
+        const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(pdfUploadedPath, ticket);
         (0, chai_1.expect)(pdfAsBase64).to.not.be.empty;
         // can we decode this with base64 ?
         (0, chai_1.expect)(() => btoa(atob(pdfAsBase64))).to.not.throw();
-        await checkForPdfBase64StringValidity(pdfAsBase64);
+        // can we open this as pdf ?
+        const buffer = Buffer.from(pdfAsBase64, 'base64');
+        const pdfGeneratedUint8 = new Uint8Array(buffer);
+        const pdf = (0, pdf_mjs_1.getDocument)({ data: pdfGeneratedUint8 });
+        const doc = await pdf.promise;
+        (0, chai_1.expect)(doc).to.not.be.empty;
+        (0, chai_1.expect)(doc.numPages).to.be.greaterThan(0);
     });
     it('should stream a pdf to a file', async () => {
-        (0, chai_1.expect)(pdfFullPath, 'Please set up the env var PDFANNEXPATH correctly').to.not.be.empty;
-        const ticket = await (0, src_1.fetchTicket)(alfrescoInfo);
-        const destinationPath = path.join('/tmp', pdfFullPath.split('/').pop());
+        const destinationPath = path.join('/tmp', pdfFileName);
         if (fs.existsSync(destinationPath))
             fs.unlinkSync(destinationPath);
         (0, chai_1.expect)(destinationPath).to.not.be.a.path();
@@ -121,7 +131,7 @@ describe('Testing GED deposit', async () => {
             controller.abort();
         }, 40000);
         // Set the stream to the remote file
-        const alfrescoStream = await (0, src_1.getFileStream)(pdfFullPath, ticket, controller);
+        const alfrescoStream = await (0, src_1.getFileStream)(pdfUploadedPath, ticket, controller);
         try {
             // Set the stream to the filesystem
             const fileStream = fs.createWriteStream(destinationPath);
@@ -137,9 +147,23 @@ describe('Testing GED deposit', async () => {
             clearTimeout(timeout);
         }
         (0, chai_1.expect)(destinationPath).to.be.a.path();
+        console.log(`Successfully written the file ${destinationPath}`);
         const pdf = (0, pdf_mjs_1.getDocument)(destinationPath);
         const doc = await pdf.promise;
         (0, chai_1.expect)(doc).to.not.be.empty;
         (0, chai_1.expect)(doc.numPages).to.be.greaterThan(0);
     });
-}).timeout(5000); // raise the default, sometimes we can have lag spikes
+    it('should check if a file name already exists in the folder', async () => {
+        const folderCmisObjects = await (0, src_1.readFolder)(alfrescoInfo, studentInfo, ticket);
+        (0, chai_1.expect)((0, src_1.fileNameExists)(pdfUploadedPath.split('/').pop(), folderCmisObjects)).to.be.true;
+        (0, chai_1.expect)((0, src_1.fileNameExists)(
+        // should be a free name
+        pdfUploadedPath.split('/').pop() + (0, filenames_1.makeid)(), folderCmisObjects)).to.be.false;
+    });
+    // This behavior is so surprising that I have a test to demonstrate it
+    it('should do a name switch when the file uploaded has a name already set', async () => {
+        // Post a file with same name
+        const pdfUploadedPath2 = await (0, src_1.uploadPDF)(alfrescoInfo, studentInfo, ticket, pdfUploadedPath.split('/').pop(), pdfFile);
+        (0, chai_1.expect)(pdfUploadedPath2.split('/').pop()).to.not.equal(pdfUploadedPath.split('/').pop());
+    });
+}).timeout(5000); // raise the default, operation are network dependent

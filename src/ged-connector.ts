@@ -169,6 +169,8 @@ export const readFolder = async (
     } else {
       debug(`Fetched a student folder but empty ${studentFolderJsonInfo}`)
     }
+
+    return studentFolderJsonInfo
   } catch(error: any) {
     if (error instanceof AbortError) {
       throw new Error('request was aborted or got a timeout');
@@ -181,6 +183,19 @@ export const readFolder = async (
   } finally {
     clearTimeout(timeout);
   }
+}
+
+/**
+ * Check if a file name already exists
+ */
+export const fileNameExists = (
+  fileNameToFind: string,
+  studentFolderJsonInfo: any,  // it is some CMIS struct, in fact
+) => {
+  return _.find(
+    studentFolderJsonInfo.objects,
+    { object: { properties: { 'cmis:name': { value: fileNameToFind } } } }
+  ) !== undefined
 }
 
 /**
@@ -252,39 +267,55 @@ export const getFileStream = async (
  * we rename it to copy next to the already set one
  */
 export const uploadPDF = async (
-  { serverUrl }: AlfrescoInfo,
+  alfrescoInfo: AlfrescoInfo,
   studentInfo: StudentInfo,
   ticket: string,
   pdfFileName: string,
   pdfFile: Buffer
 ) => {
-  const formData = new FormData()
-  formData.append('cmisaction', 'createDocument')
-  formData.append('propertyId[0]', 'cmis:objectTypeId')
-  formData.append('propertyValue[0]', 'cmis:document')
-  formData.append('propertyId[1]', 'cmis:name')
-  formData.append('succinct', 'true')
-
-  const pdfBlob = new File([pdfFile], pdfFileName)
-  formData.append('file', pdfBlob)
+  // let's validate a good name first
+  const folderCmisObjects = await readFolder(
+    alfrescoInfo,
+    studentInfo,
+    ticket
+  ) as any
 
   const fullPath = buildAlfrescoFullUrl(
-    serverUrl,
+    alfrescoInfo.serverUrl,
     studentInfo,
     ticket
   )
 
-  // we may need to change the filename
-  let finalPdfFileName = pdfFileName
-  const maxRetry = 50
+  const maxRetry = 25
   let attempt = 0
+  let finalPdfFileName = pdfFileName
 
   while (attempt < maxRetry) {
-    try {
+    if (
+      fileNameExists(finalPdfFileName, folderCmisObjects)
+    ) {
+      // this name is not free, build a new one
+      attempt++
+
+      finalPdfFileName = finalPdfFileName.match(/_v(\d+)(\.[^.]*)$/)
+        ? finalPdfFileName.replace(/_v(\d+)(\.[^.]*)$/, (_, v, ext) => `_v${+v + 1}${ext}`)
+        : finalPdfFileName.replace(/(\.[^.]*)$/, "_v1$1");
+    } else {
+      // ok, the name should be good, let's upload the file
+
+      const formData = new FormData()
+      formData.append('cmisaction', 'createDocument')
+      formData.append('propertyId[0]', 'cmis:objectTypeId')
+      formData.append('propertyValue[0]', 'cmis:document')
+      formData.append('propertyId[1]', 'cmis:name')
+      formData.append('succinct', 'true')
+
+      const pdfBlob = new File([pdfFile], finalPdfFileName)
+      formData.append('file', pdfBlob)
       formData.append('propertyValue[1]', finalPdfFileName)
       const encoder = new FormDataEncoder(formData)
 
-      debug(`Trying to deposit the file ${finalPdfFileName}`)
+      debug(`Trying to deposit the file ${ finalPdfFileName }`)
 
       // set a timeout
       const controller = new AbortController();
@@ -304,7 +335,7 @@ export const uploadPDF = async (
         )
       } catch (error) {
         if (error instanceof AbortError) {
-          throw new Error(`Request on ${ serverUrl } was aborted or got a timeout`);
+          throw new Error(`Request on ${ alfrescoInfo.serverUrl } was aborted or got a timeout`);
         } else {
           throw error
         }
@@ -318,20 +349,9 @@ export const uploadPDF = async (
       debug(`Successfully uploaded a file. Requested name : ${pdfFileName}. Final path : ${fullFinalPath}`)
 
       return fullFinalPath
-    } catch(error: any) {
-      if (error.response?.statusCode === 409) {
-        // retry with a different name
-        debug(`The File name conflict. Retrying`)
-        // the regex allows to capture the filename extension (.pdf)
-        attempt++
-
-        // add the _v1, or increment
-        finalPdfFileName = finalPdfFileName.match(/_v(\d+)(\.[^.]*)$/)
-          ? finalPdfFileName.replace(/_v(\d+)(\.[^.]*)$/, (_, v, ext) => `_v${+v + 1}${ext}`)
-          : finalPdfFileName.replace(/(\.[^.]*)$/, "_v1$1");
-      } else {
-        throw error; // Rethrow or handle other errors as needed
-      }
     }
   }
+
+  // all attempts have failed
+  throw new Error(`Unable to find a free name for the document`)
 }

@@ -10,7 +10,11 @@ export declare const getStudentFolderRelativeUrl: (studentInfo: StudentInfo) => 
  * @param studentInfo
  * @param ticket
  */
-export declare const readFolder: ({ serverUrl }: AlfrescoInfo, studentInfo: StudentInfo, ticket: string) => Promise<void>;
+export declare const readFolder: ({ serverUrl }: AlfrescoInfo, studentInfo: StudentInfo, ticket: string) => Promise<JSON>;
+/**
+ * Check if a file name already exists
+ */
+export declare const fileNameExists: (fileNameToFind: string, studentFolderJsonInfo: any) => boolean;
 /**
  * Get a pdf file in a base64 format
  */
@@ -24,4 +28,4 @@ export declare const getFileStream: (filePath: string, ticket: string, abortCont
  * File name can change from the provided one as it may already have one, so
  * we rename it to copy next to the already set one
  */
-export declare const uploadPDF: ({ serverUrl }: AlfrescoInfo, studentInfo: StudentInfo, ticket: string, pdfFileName: string, pdfFile: Buffer) => Promise<string | undefined>;
+export declare const uploadPDF: (alfrescoInfo: AlfrescoInfo, studentInfo: StudentInfo, ticket: string, pdfFileName: string, pdfFile: Buffer) => Promise<string>;
