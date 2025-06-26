@@ -8,6 +8,7 @@ import {promisify} from 'node:util';
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import stream from 'node:stream';
 import { AbortController } from "node-abort-controller";
+import { makeid } from "./lib/filenames";
 
 require('dotenv').config()
 
@@ -100,7 +101,7 @@ describe('Testing GED deposit', async () => {
     const pdfFile = fs.readFileSync(__dirname + '/sample.pdf',);
     const base64String = pdfFile.toString('base64');
 
-    const pdfFileName = `Rapport annuel doctorat annex 2025.pdf`
+    const pdfFileName = `Rapport-{makeid()}.pdf`
     const pdfFileBuffer = Buffer.from(base64String, 'base64')
 
     const ticket = await fetchTicket(alfrescoInfo)
