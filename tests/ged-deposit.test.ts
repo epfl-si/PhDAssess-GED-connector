@@ -4,6 +4,7 @@
  */
 import * as path from "node:path";
 import * as fs from 'node:fs';
+import * as fsp from 'node:fs/promises';
 import {promisify} from 'node:util';
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import stream from 'node:stream';
@@ -88,17 +89,17 @@ describe('Testing GED deposit', async () => {
     )
   })
 
+  async function pdfBytes (fromPath = __dirname + '/sample.pdf') {
+    return await fsp.readFile(fromPath)
+  }
 
   it('should upload a pdf file to the student folder. The pdf become a base 64, then a form data.', async () => {
     abortWritingTestIfProd();
 
 
     // read the pdf file to base64
-    const pdfFile = fs.readFileSync(__dirname + '/sample.pdf',);
-    const base64String = pdfFile.toString('base64');
-
+    const pdfFile = await pdfBytes();
     const pdfFileName = `Rapport-{makeid()}.pdf`
-    const pdfFileBuffer = Buffer.from(base64String, 'base64')
 
     const ticket = await fetchTicket(alfrescoInfo)
 
@@ -107,7 +108,7 @@ describe('Testing GED deposit', async () => {
       studentInfo,
       ticket,
       pdfFileName,
-      pdfFileBuffer
+      pdfFile
     ) as string
 
     // Try to read back the file
