@@ -122,6 +122,36 @@ describe('Testing GED deposit', async () => {
 
   }).timeout(10000)  // 2000, the default, is not enough for this operation
 
+  it('picks another filename when uploading to a file that already exists', async () => {
+    abortWritingTestIfProd();
+
+
+    // read the pdf file to base64
+    const pdfFile = await pdfBytes();
+    const pdfFileName = `Rapport-{makeid()}.pdf`
+
+    const ticket = await fetchTicket(alfrescoInfo)
+
+    const pdfFullPath1 = await uploadPDF(
+      alfrescoInfo,
+      studentInfo,
+      ticket,
+      pdfFileName,
+      pdfFile
+    ) as string
+
+    const pdfFullPath2 = await uploadPDF(
+      alfrescoInfo,
+      studentInfo,
+      ticket,
+      pdfFileName,
+      pdfFile
+    ) as string
+
+    expect(pdfFullPath1).to.not.equal(pdfFullPath2)
+
+  }).timeout(10000)  // 2000, the default, is not enough for this operation
+
 
   it('should fetch a pdf as a base64 string', async () => {
 
