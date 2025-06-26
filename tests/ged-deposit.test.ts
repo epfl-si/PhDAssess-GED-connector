@@ -17,6 +17,7 @@ import 'mocha'
 import * as chai from 'chai';
 import { expect } from 'chai';
 chai.use(require('chai-fs'));
+chai.use(require('chai-bytes'));
 
 import {
   fetchTicket,
@@ -117,7 +118,7 @@ describe('Testing GED deposit', async () => {
       ticket
     )
 
-    await checkForPdfBase64StringValidity(pdfAsBase64)
+    expect(Buffer.from(pdfAsBase64, "base64")).to.equalBytes(pdfFile)
 
   }).timeout(10000)  // 2000, the default, is not enough for this operation
 
