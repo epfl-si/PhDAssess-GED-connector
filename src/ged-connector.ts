@@ -286,7 +286,7 @@ export const uploadPDF = async (
     ticket
   )
 
-  const maxRetry = 25
+  const maxRetry = 99
   let attempt = 0
   let finalPdfFileName = pdfFileName
 

@@ -225,7 +225,7 @@ const uploadPDF = async (alfrescoInfo, studentInfo, ticket, pdfFileName, pdfFile
     // let's validate a good name first
     const folderCmisObjects = await (0, exports.readFolder)(alfrescoInfo, studentInfo, ticket);
     const fullPath = buildAlfrescoFullUrl(alfrescoInfo.serverUrl, studentInfo, ticket);
-    const maxRetry = 25;
+    const maxRetry = 99;
     let attempt = 0;
     let finalPdfFileName = pdfFileName;
     while (attempt < maxRetry) {
