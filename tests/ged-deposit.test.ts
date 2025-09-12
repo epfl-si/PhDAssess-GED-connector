@@ -128,12 +128,12 @@ describe('Testing GED deposit and readability', async () => {
 
     expect(pdfAsBase64).to.not.be.empty;
 
-    // can we decode this with base64 ?
+    // can we decode this with base64?
     expect(
       () => btoa(atob(pdfAsBase64))
     ).to.not.throw()
 
-    // can we open this as pdf ?
+    // can we open this as a PDF file?
     const buffer = Buffer.from(pdfAsBase64, 'base64')
     const pdfGeneratedUint8 = new Uint8Array(buffer)
 
@@ -222,7 +222,7 @@ describe('Testing GED deposit and readability', async () => {
   // This behavior is so surprising that I have a test to demonstrate it
   it('should do a name switch when the file uploaded has a name already set', async () => {
 
-    // Post a file with same name
+    // Post a file with the same name
     const pdfUploadedPath2 = await uploadPDF(
       alfrescoInfo,
       studentInfo,
@@ -237,4 +237,4 @@ describe('Testing GED deposit and readability', async () => {
 
   })
 
-}).timeout(5000);  // raise the default, operation are network dependent
+}).timeout(5000);  // let raise the default, as the operations are network dependents

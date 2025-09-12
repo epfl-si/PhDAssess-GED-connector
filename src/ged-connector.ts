@@ -78,7 +78,7 @@ export const fetchTicket = async (
     if (error instanceof AbortError) {
       throw new Error(`Request on ${ serverUrl } was aborted or got a timeout`);
     } else if (error instanceof FetchError) {
-      // hide server url in message that Fetch expose
+      // hide server url in messages that Fetch expose
       throw new Error(`Fetch got an error code: ${ error.code }`)
     } else {
       throw error
@@ -199,7 +199,7 @@ export const fileNameExists = (
 }
 
 /**
- * Get a pdf file in a base64 format
+ * Get a PDF file in a base64 format
  */
 export const fetchFileAsBase64 = async (
   filePath: string,
@@ -263,7 +263,7 @@ export const getFileStream = async (
 
 /**
  * Upload a file and return the full path that finally fit.
- * File name can change from the provided one as it may already have one, so
+ * The File name can change from the provided one as it may already have one, so
  * we rename it to copy next to the already set one
  */
 export const uploadPDF = async (
