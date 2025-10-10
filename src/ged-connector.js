@@ -46,7 +46,6 @@ const node_fetch_1 = __importStar(require("node-fetch"));
 const formdata_node_1 = require("formdata-node");
 // @ts-ignore
 const form_data_encoder_1 = require("form-data-encoder");
-const node_abort_controller_1 = require("node-abort-controller");
 const doctorats_1 = require("./doctorats");
 const debug = (0, debug_1.default)('ged-connector');
 const alfrescoRequestTimeoutMS = 40000; // 40 seconds
@@ -64,7 +63,7 @@ const fetchTicket = async ({ serverUrl, username, password }) => {
     const alfrescoLoginUrl = new url_1.URL(`/alfresco/service/api/login`, serverUrl);
     alfrescoLoginUrl.search = `u=${username}&pw=${password}&format=json`;
     // set a timeout
-    const controller = new node_abort_controller_1.AbortController();
+    const controller = new AbortController();
     const timeout = setTimeout(() => {
         controller.abort();
     }, alfrescoRequestTimeoutMS);
@@ -85,7 +84,7 @@ const fetchTicket = async ({ serverUrl, username, password }) => {
             throw new Error(`Request on ${serverUrl} was aborted or got a timeout`);
         }
         else if (error instanceof node_fetch_1.FetchError) {
-            // hide server url in message that Fetch expose
+            // hide server url in messages that Fetch expose
             throw new Error(`Fetch got an error code: ${error.code}`);
         }
         else {
@@ -127,7 +126,7 @@ const buildAlfrescoFullUrl = (serverUrl, studentInfo, ticket, fileName = '') => 
 const readFolder = async ({ serverUrl }, studentInfo, ticket) => {
     const folderFullPath = buildAlfrescoFullUrl(serverUrl, studentInfo, ticket);
     // set a timeout
-    const controller = new node_abort_controller_1.AbortController();
+    const controller = new AbortController();
     const timeout = setTimeout(() => {
         controller.abort();
     }, alfrescoRequestTimeoutMS);
@@ -172,13 +171,13 @@ const fileNameExists = (fileNameToFind, studentFolderJsonInfo) => {
 };
 exports.fileNameExists = fileNameExists;
 /**
- * Get a pdf file in a base64 format
+ * Get a PDF file in a base64 format
  */
 const fetchFileAsBase64 = async (filePath, ticket) => {
     const filePathUrl = appendTicketToUrl(filePath, ticket);
     debug(`Getting file '${filePathUrl}' to save as buffer`);
     // set a timeout
-    const controller = new node_abort_controller_1.AbortController();
+    const controller = new AbortController();
     const timeout = setTimeout(() => {
         controller.abort();
     }, alfrescoRequestTimeoutMS);
@@ -218,7 +217,7 @@ const getFileStream = async (filePath, ticket, abortController) => {
 exports.getFileStream = getFileStream;
 /**
  * Upload a file and return the full path that finally fit.
- * File name can change from the provided one as it may already have one, so
+ * The File name can change from the provided one as it may already have one, so
  * we rename it to copy next to the already set one
  */
 const uploadPDF = async (alfrescoInfo, studentInfo, ticket, pdfFileName, pdfFile) => {
@@ -250,7 +249,7 @@ const uploadPDF = async (alfrescoInfo, studentInfo, ticket, pdfFileName, pdfFile
             const encoder = new form_data_encoder_1.FormDataEncoder(formData);
             debug(`Trying to deposit the file ${finalPdfFileName}`);
             // set a timeout
-            const controller = new node_abort_controller_1.AbortController();
+            const controller = new AbortController();
             const timeout = setTimeout(() => {
                 controller.abort();
             }, alfrescoRequestTimeoutMS);

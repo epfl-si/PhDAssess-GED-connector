@@ -1,5 +1,4 @@
 import fetch from 'node-fetch';
-import { AbortController } from "node-abort-controller";
 import { AlfrescoInfo, StudentInfo } from './types';
 export declare const fetchTicket: ({ serverUrl, username, password }: AlfrescoInfo) => Promise<string>;
 export declare const getStudentFolderRelativeUrl: (studentInfo: StudentInfo) => string;
@@ -16,7 +15,7 @@ export declare const readFolder: ({ serverUrl }: AlfrescoInfo, studentInfo: Stud
  */
 export declare const fileNameExists: (fileNameToFind: string, studentFolderJsonInfo: any) => boolean;
 /**
- * Get a pdf file in a base64 format
+ * Get a PDF file in a base64 format
  */
 export declare const fetchFileAsBase64: (filePath: string, ticket: string) => Promise<string>;
 /**
@@ -25,7 +24,7 @@ export declare const fetchFileAsBase64: (filePath: string, ticket: string) => Pr
 export declare const getFileStream: (filePath: string, ticket: string, abortController: AbortController) => Promise<fetch.Response>;
 /**
  * Upload a file and return the full path that finally fit.
- * File name can change from the provided one as it may already have one, so
+ * The File name can change from the provided one as it may already have one, so
  * we rename it to copy next to the already set one
  */
 export declare const uploadPDF: (alfrescoInfo: AlfrescoInfo, studentInfo: StudentInfo, ticket: string, pdfFileName: string, pdfFile: Buffer) => Promise<string>;

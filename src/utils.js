@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildStudentName = void 0;
 /**
  * GED has a specific way to name students folder.
- * This code try to find the good name from a task variables.
+ * This code tries to find the good name from the task variables.
  */
 const buildStudentName = (jobVariables) => {
     if (jobVariables.phdStudentFirstName && jobVariables.phdStudentLastName) {

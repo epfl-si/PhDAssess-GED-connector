@@ -46,7 +46,6 @@ const fsp = __importStar(require("node:fs/promises"));
 const node_util_1 = require("node:util");
 const pdf_mjs_1 = require("pdfjs-dist/legacy/build/pdf.mjs");
 const node_stream_1 = __importDefault(require("node:stream"));
-const node_abort_controller_1 = require("node-abort-controller");
 const filenames_1 = require("./lib/filenames");
 require('dotenv').config();
 require("mocha");
@@ -110,9 +109,9 @@ describe('Testing GED deposit and readability', async () => {
     it('should fetch the pdf as a base64 string and be openable as PDF', async () => {
         const pdfAsBase64 = await (0, src_1.fetchFileAsBase64)(pdfUploadedPath, ticket);
         (0, chai_1.expect)(pdfAsBase64).to.not.be.empty;
-        // can we decode this with base64 ?
+        // can we decode this with base64?
         (0, chai_1.expect)(() => btoa(atob(pdfAsBase64))).to.not.throw();
-        // can we open this as pdf ?
+        // can we open this as a PDF file?
         const buffer = Buffer.from(pdfAsBase64, 'base64');
         const pdfGeneratedUint8 = new Uint8Array(buffer);
         const pdf = (0, pdf_mjs_1.getDocument)({ data: pdfGeneratedUint8 });
@@ -126,7 +125,7 @@ describe('Testing GED deposit and readability', async () => {
             fs.unlinkSync(destinationPath);
         (0, chai_1.expect)(destinationPath).to.not.be.a.path();
         // set a timeout
-        const controller = new node_abort_controller_1.AbortController();
+        const controller = new AbortController();
         const timeout = setTimeout(() => {
             controller.abort();
         }, 40000);
@@ -162,8 +161,8 @@ describe('Testing GED deposit and readability', async () => {
     });
     // This behavior is so surprising that I have a test to demonstrate it
     it('should do a name switch when the file uploaded has a name already set', async () => {
-        // Post a file with same name
+        // Post a file with the same name
         const pdfUploadedPath2 = await (0, src_1.uploadPDF)(alfrescoInfo, studentInfo, ticket, pdfUploadedPath.split('/').pop(), pdfFile);
         (0, chai_1.expect)(pdfUploadedPath2.split('/').pop()).to.not.equal(pdfUploadedPath.split('/').pop());
     });
-}).timeout(5000); // raise the default, operation are network dependent
+}).timeout(5000); // let raise the default, as the operations are network dependents

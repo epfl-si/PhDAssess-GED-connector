@@ -8,7 +8,6 @@ import * as fsp from 'node:fs/promises';
 import {promisify} from 'node:util';
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import stream from 'node:stream';
-import { AbortController } from "node-abort-controller";
 import { makeid } from "./lib/filenames";
 
 require('dotenv').config()
