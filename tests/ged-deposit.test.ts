@@ -165,6 +165,10 @@ describe('Testing GED deposit and readability', async () => {
       controller
     )
 
+    if (!alfrescoStream || !alfrescoStream.body) {
+      throw new Error('Unable to open a stream to alfresco')
+    }
+
     try {
       // Set the stream to the filesystem
       const fileStream = fs.createWriteStream(destinationPath)

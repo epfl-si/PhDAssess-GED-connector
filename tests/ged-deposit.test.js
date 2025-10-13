@@ -131,6 +131,9 @@ describe('Testing GED deposit and readability', async () => {
         }, 40000);
         // Set the stream to the remote file
         const alfrescoStream = await (0, src_1.getFileStream)(pdfUploadedPath, ticket, controller);
+        if (!alfrescoStream || !alfrescoStream.body) {
+            throw new Error('Unable to open a stream to alfresco');
+        }
         try {
             // Set the stream to the filesystem
             const fileStream = fs.createWriteStream(destinationPath);
