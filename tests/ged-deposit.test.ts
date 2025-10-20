@@ -8,7 +8,6 @@ import * as fsp from 'node:fs/promises';
 import {promisify} from 'node:util';
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import stream from 'node:stream';
-import { AbortController } from "node-abort-controller";
 import { makeid } from "./lib/filenames";
 
 require('dotenv').config()
@@ -165,6 +164,10 @@ describe('Testing GED deposit and readability', async () => {
       ticket,
       controller
     )
+
+    if (!alfrescoStream || !alfrescoStream.body) {
+      throw new Error('Unable to open a stream to alfresco')
+    }
 
     try {
       // Set the stream to the filesystem

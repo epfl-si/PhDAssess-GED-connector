@@ -42,11 +42,9 @@ const debug_1 = __importDefault(require("debug"));
 const _ = __importStar(require("lodash"));
 const url_1 = require("url");
 const stream_1 = require("stream");
-const node_fetch_1 = __importStar(require("node-fetch"));
 const formdata_node_1 = require("formdata-node");
 // @ts-ignore
 const form_data_encoder_1 = require("form-data-encoder");
-const node_abort_controller_1 = require("node-abort-controller");
 const doctorats_1 = require("./doctorats");
 const debug = (0, debug_1.default)('ged-connector');
 const alfrescoRequestTimeoutMS = 40000; // 40 seconds
@@ -64,14 +62,12 @@ const fetchTicket = async ({ serverUrl, username, password }) => {
     const alfrescoLoginUrl = new url_1.URL(`/alfresco/service/api/login`, serverUrl);
     alfrescoLoginUrl.search = `u=${username}&pw=${password}&format=json`;
     // set a timeout
-    const controller = new node_abort_controller_1.AbortController();
+    const controller = new AbortController();
     const timeout = setTimeout(() => {
         controller.abort();
     }, alfrescoRequestTimeoutMS);
     try {
-        const response = await (0, node_fetch_1.default)(alfrescoLoginUrl, 
-        // @ts-ignore
-        { signal: controller.signal });
+        const response = await fetch(alfrescoLoginUrl, { signal: controller.signal });
         if (!response.ok)
             throw new Error(`Alfresco answered with a response error. Returned error: ${response}`);
         const dataTicket = await response.json();
@@ -81,12 +77,8 @@ const fetchTicket = async ({ serverUrl, username, password }) => {
         return dataTicket.data.ticket;
     }
     catch (error) {
-        if (error instanceof node_fetch_1.AbortError) {
+        if (error.name === 'AbortError') {
             throw new Error(`Request on ${serverUrl} was aborted or got a timeout`);
-        }
-        else if (error instanceof node_fetch_1.FetchError) {
-            // hide server url in message that Fetch expose
-            throw new Error(`Fetch got an error code: ${error.code}`);
         }
         else {
             throw error;
@@ -127,13 +119,13 @@ const buildAlfrescoFullUrl = (serverUrl, studentInfo, ticket, fileName = '') => 
 const readFolder = async ({ serverUrl }, studentInfo, ticket) => {
     const folderFullPath = buildAlfrescoFullUrl(serverUrl, studentInfo, ticket);
     // set a timeout
-    const controller = new node_abort_controller_1.AbortController();
+    const controller = new AbortController();
     const timeout = setTimeout(() => {
         controller.abort();
     }, alfrescoRequestTimeoutMS);
     debug(`Reading student folder info ${folderFullPath}`);
     try {
-        const response = await (0, node_fetch_1.default)(folderFullPath, 
+        const response = await fetch(folderFullPath, 
         // @ts-ignore
         { signal: controller.signal });
         if (!response.ok)
@@ -148,7 +140,7 @@ const readFolder = async ({ serverUrl }, studentInfo, ticket) => {
         return studentFolderJsonInfo;
     }
     catch (error) {
-        if (error instanceof node_fetch_1.AbortError) {
+        if (error.name === 'AbortError') {
             throw new Error('request was aborted or got a timeout');
         }
         else if (error.response?.statusCode) {
@@ -172,27 +164,28 @@ const fileNameExists = (fileNameToFind, studentFolderJsonInfo) => {
 };
 exports.fileNameExists = fileNameExists;
 /**
- * Get a pdf file in a base64 format
+ * Get a PDF file in a base64 format
  */
 const fetchFileAsBase64 = async (filePath, ticket) => {
     const filePathUrl = appendTicketToUrl(filePath, ticket);
     debug(`Getting file '${filePathUrl}' to save as buffer`);
     // set a timeout
-    const controller = new node_abort_controller_1.AbortController();
+    const controller = new AbortController();
     const timeout = setTimeout(() => {
         controller.abort();
     }, alfrescoRequestTimeoutMS);
     try {
-        const response = await (0, node_fetch_1.default)(filePathUrl, 
+        const response = await fetch(filePathUrl, 
         // @ts-ignore
         { signal: controller.signal });
         if (!response.ok)
             throw new Error(`Server answered with a HTTP response error: ${response.status}, ${response.statusText} }`);
-        const buffer = await response.buffer();
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
         return buffer.toString('base64');
     }
     catch (error) {
-        if (error instanceof node_fetch_1.AbortError) {
+        if (error.name === 'AbortError') {
             throw new Error(`Request ${filePath} was aborted or got a timeout`);
         }
         else {
@@ -211,14 +204,14 @@ const getFileStream = async (filePath, ticket, abortController) => {
     // see tests to get an example of this stream usage
     const filePathUrl = appendTicketToUrl(filePath, ticket);
     debug(`Getting a stream for '${filePathUrl}'`);
-    return await (0, node_fetch_1.default)(filePathUrl, 
+    return await fetch(filePathUrl, 
     // @ts-ignore
     { signal: abortController.signal });
 };
 exports.getFileStream = getFileStream;
 /**
  * Upload a file and return the full path that finally fit.
- * File name can change from the provided one as it may already have one, so
+ * The File name can change from the provided one as it may already have one, so
  * we rename it to copy next to the already set one
  */
 const uploadPDF = async (alfrescoInfo, studentInfo, ticket, pdfFileName, pdfFile) => {
@@ -250,20 +243,21 @@ const uploadPDF = async (alfrescoInfo, studentInfo, ticket, pdfFileName, pdfFile
             const encoder = new form_data_encoder_1.FormDataEncoder(formData);
             debug(`Trying to deposit the file ${finalPdfFileName}`);
             // set a timeout
-            const controller = new node_abort_controller_1.AbortController();
+            const controller = new AbortController();
             const timeout = setTimeout(() => {
                 controller.abort();
             }, alfrescoRequestTimeoutMS);
             try {
                 // Post with fetch, oh yeah
-                await (0, node_fetch_1.default)(fullPath, {
+                await fetch(fullPath, {
                     headers: encoder.headers,
                     method: 'POST',
-                    body: stream_1.Readable.from(encoder.encode())
+                    body: stream_1.Readable.from(encoder.encode()),
+                    duplex: 'half'
                 });
             }
             catch (error) {
-                if (error instanceof node_fetch_1.AbortError) {
+                if (error.name === 'AbortError') {
                     throw new Error(`Request on ${alfrescoInfo.serverUrl} was aborted or got a timeout`);
                 }
                 else {

@@ -4,15 +4,10 @@ import debug_ from 'debug'
 import * as _ from "lodash";
 import {URL} from "url";
 import {Readable} from "stream"
-import
-  fetch,
-{AbortError, FetchError}
-  from 'node-fetch';
 import {FormData, File} from 'formdata-node';
 
 // @ts-ignore
 import {FormDataEncoder} from "form-data-encoder";
-import {AbortController} from "node-abort-controller";
 
 import {ecolesDoctorales} from "./doctorats"
 import {AlfrescoTicketResponse} from "./alfresco_types"
@@ -56,7 +51,6 @@ export const fetchTicket = async (
   try {
     const response = await fetch(
       alfrescoLoginUrl,
-      // @ts-ignore
       { signal: controller.signal }
     );
 
@@ -74,12 +68,9 @@ export const fetchTicket = async (
 
     return dataTicket.data.ticket
 
-  } catch (error) {
-    if (error instanceof AbortError) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
       throw new Error(`Request on ${ serverUrl } was aborted or got a timeout`);
-    } else if (error instanceof FetchError) {
-      // hide server url in messages that Fetch expose
-      throw new Error(`Fetch got an error code: ${ error.code }`)
     } else {
       throw error
     }
@@ -172,7 +163,7 @@ export const readFolder = async (
 
     return studentFolderJsonInfo
   } catch(error: any) {
-    if (error instanceof AbortError) {
+    if (error.name === 'AbortError') {
       throw new Error('request was aborted or got a timeout');
     } else if (error.response?.statusCode) {
       error.message += `. URL used: ${folderFullPath}`
@@ -226,12 +217,13 @@ export const fetchFileAsBase64 = async (
       `Server answered with a HTTP response error: ${ response.status }, ${ response.statusText } }`
     )
 
-    const buffer = await response.buffer()
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
 
     return buffer.toString('base64')
 
-  } catch (error) {
-    if (error instanceof AbortError) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
       throw new Error(`Request ${ filePath } was aborted or got a timeout`);
     } else {
       throw error
@@ -330,11 +322,12 @@ export const uploadPDF = async (
           {
             headers: encoder.headers,
             method: 'POST',
-            body: Readable.from(encoder.encode())
-          }
+            body: Readable.from(encoder.encode()) as unknown as BodyInit,
+            duplex: 'half'
+          } as any
         )
-      } catch (error) {
-        if (error instanceof AbortError) {
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
           throw new Error(`Request on ${ alfrescoInfo.serverUrl } was aborted or got a timeout`);
         } else {
           throw error
