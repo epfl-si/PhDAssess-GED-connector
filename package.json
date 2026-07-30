@@ -10,9 +10,6 @@
   "license": "ISC",
   "description": "",
   "engineStrict": true,
-  "engines": {
-    "node": "22"
-  },
   "dependencies": {
     "console-log-json": "^2.12.1",
     "debug": "^4.4.1",
